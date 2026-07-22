@@ -34,10 +34,10 @@ jobs:
           client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
           
           prompt = (
-              'Generate 4 brand new PMP exam multiple-choice questions with choices A-D, '
-              'the correct answer, a brief mindset explanation for why it is correct, '
-              'and conclude with your affiliate link. '
-              'Format it cleanly as an engaging Facebook post.'
+              'Generate 1 high-yield PMP exam practice question with multiple-choice options A-D, '
+              'clearly state the correct answer, provide a brief mindset explanation for why it is correct, '
+              'and conclude with a clear call-to-action including this affiliate link [Insert your link here]. '
+              'Format it cleanly as an engaging, ready-to-read Facebook post.'
           )
 
           response = client.models.generate_content(
