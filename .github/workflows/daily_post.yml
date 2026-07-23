@@ -18,7 +18,7 @@ jobs:
       - name: Install Dependencies
         run: pip install requests
 
-      - name: Post Poll and Instant Answer Comment
+      - name: Post Link-Out Quiz to Facebook
         env:
           FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
           FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
@@ -27,48 +27,26 @@ jobs:
           import os
           import requests
 
-          token = os.environ['FACEBOOK_ACCESS_TOKEN']
-          page_id = os.environ['FACEBOOK_PAGE_ID']
-
-          # 1. Publish the main practice question post
-          question_text = (
-              '📊 DAILY PMP PRACTICE POLL\n\n'
-              'A project manager discovers a major compliance issue mid-project. What should they do first?\n\n'
-              'A) Stop all work immediately\n'
-              'B) Analyze the impact and consult the risk register\n'
-              'C) Inform the sponsor right away\n'
-              'D) Ignore it if it doesn’t impact the budget\n\n'
-              '👇 Cast your vote in the comments below! (Answer revealed in the first comment)'
+          # Placeholder quiz post text with a call-to-action link 
+          # (Replace the URL with your hosted quiz page or Vercel app link)
+          post_text = (
+              '📊 DAILY PMP INTERACTIVE PRACTICE CHALLENGE\n\n'
+              'Test your project management skills! Click below to open today\'s interactive quiz, '
+              'select your answer box, and get instant feedback with full PMP mindset explanations.\n\n'
+              '👉 Take the Quiz Here: https://your-quiz-site.vercel.app\n\n'
+              '#PMP #ProjectManagement #PMPExam #StudyPMP'
           )
 
-          feed_url = f'https://graph.facebook.com/v18.0/{page_id}/feed'
-          feed_payload = {
-              'message': question_text,
+          page_id = os.environ['FACEBOOK_PAGE_ID']
+          token = os.environ['FACEBOOK_ACCESS_TOKEN']
+          url = f'https://graph.facebook.com/v18.0/{page_id}/feed'
+          
+          payload = {
+              'message': post_text,
               'published': 'true',
               'access_token': token
           }
           
-          res = requests.post(feed_url, data=feed_payload)
-          res_data = res.json()
-          print('Post Response:', res_data)
-
-          # Extract the new Post ID to attach the instant answer comment
-          if 'id' in res_data:
-              post_id = res_data['id']
-              
-              answer_text = (
-                  '🎯 CORRECT ANSWER: B\n\n'
-                  '💡 PMP Mindset: Always analyze the impact and refer to the risk management plan / risk register before taking impulsive action or escalating.'
-              )
-              
-              comment_url = f'https://graph.facebook.com/v18.0/{post_id}/comments'
-              comment_payload = {
-                  'message': answer_text,
-                  'access_token': token
-              }
-              
-              comment_res = requests.post(comment_url, data=comment_payload)
-              print('Comment Response:', comment_res.json())
-          else:
-              print('Error: Could not retrieve post ID to attach answer comment.')
+          res = requests.post(url, data=payload)
+          print('Facebook Response:', res.json())
           "
