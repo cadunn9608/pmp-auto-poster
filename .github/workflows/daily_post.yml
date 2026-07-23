@@ -27,7 +27,7 @@ jobs:
           import os
           import requests
 
-          # Stylized post formatting using Unicode characters for clear visibility
+          # Stylized post formatting using bold Unicode characters for the feed
           post_text = (
               '📊 𝐃𝐀𝐈𝐋𝐘 𝐏𝐌𝐏 𝐏𝐑𝐀𝐂𝐓𝐈𝐂𝐄 𝐂𝐇𝐀𝐋𝐋𝐄𝐍𝐆𝐄\n\n'
               'A project manager discovers a major compliance issue mid-project. What should they do first?\n\n'
@@ -37,8 +37,7 @@ jobs:
               '• 𝐃) Ignore it if it doesn’t impact the budget\n\n'
               '━━━━━━━━━━━━━━━━━━\n\n'
               '💬 𝙒𝐚𝐧𝐭 𝐢𝐧𝐬𝐭𝐚𝐧𝐭 𝐟𝐞𝐞𝐝𝐛𝐚𝐜𝐤?\n'
-              '👉 Click below to open a private chat and check your answer:\n'
-              'https://m.me/your-facebook-page-username?ref=daily_quiz'
+              '👉 Drop a comment with your answer below to check if you got it right!'
           )
 
           page_id = os.environ['FACEBOOK_PAGE_ID']
