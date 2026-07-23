@@ -34,10 +34,14 @@ jobs:
           client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
           
           prompt = (
-              'Generate 1 high-yield PMP exam practice question with multiple-choice options A-D, '
-              'clearly state the correct answer, provide a brief mindset explanation for why it is correct, '
-              'and conclude with a clear call-to-action including your affiliate link. '
-              'Format it cleanly as an engaging, ready-to-read Facebook post.'
+              'Generate 1 high-yield PMP exam practice question formatted specifically as an interactive daily poll. '
+              'Include: '
+              '1. The Scenario Question. '
+              '2. Clear voting choices formatted as A, B, C, D. '
+              '3. The Correct Answer revealed cleanly. '
+              '4. A concise PMP mindset explanation. '
+              '5. A call-to-action with your affiliate link [Insert your link here]. '
+              'Keep the formatting visually engaging with clean line breaks for a Facebook feed.'
           )
 
           response = client.models.generate_content(
