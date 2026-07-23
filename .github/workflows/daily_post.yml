@@ -1,8 +1,6 @@
 name: Daily PMP Facebook Auto-Poster
 
 on:
-  schedule:
-    - cron: '0 8 * * *' # Runs every day at 8:00 AM UTC
   workflow_dispatch:
 
 jobs:
@@ -18,38 +16,29 @@ jobs:
           python-version: '3.10'
 
       - name: Install Dependencies
-        run: pip install google-genai requests
+        run: pip install requests
 
-      - name: Generate Content and Post to Facebook
+      - name: Post Static Poll to Facebook
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
           FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
         run: |
           python -c "
           import os
-          from google import genai
           import requests
 
-          client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
-          
-          prompt = (
-              'Generate 1 high-yield PMP exam practice question formatted specifically as an interactive daily poll. '
-              'Include: '
-              '1. The Scenario Question. '
-              '2. Clear voting choices formatted as A, B, C, D. '
-              '3. The Correct Answer revealed cleanly. '
-              '4. A concise PMP mindset explanation. '
-              '5. A call-to-action with your affiliate link [Insert your link here]. '
-              'Keep the formatting visually engaging with clean line breaks for a Facebook feed.'
+          # Hardcoded test post to verify Facebook connectivity
+          post_text = (
+              '📊 DAILY PMP PRACTICE POLL (Test Run)\n\n'
+              'A project manager discovers a major compliance issue mid-project. What should they do first?\n\n'
+              'A) Stop all work immediately\n'
+              'B) Analyze the impact and consult the risk register\n'
+              'C) Inform the sponsor right away\n'
+              'D) Ignore it if it doesn’t impact the budget\n\n'
+              'Correct Answer: B\n'
+              'Mindset: Always analyze impact before taking impulsive action.\n\n'
+              'Study smarter with our daily PMP prep!'
           )
-
-          response = client.models.generate_content(
-              model='gemini-2.0-flash',
-              contents=prompt,
-          )
-          
-          post_text = response.text
 
           page_id = os.environ['FACEBOOK_PAGE_ID']
           token = os.environ['FACEBOOK_ACCESS_TOKEN']
