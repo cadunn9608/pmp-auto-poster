@@ -18,7 +18,7 @@ jobs:
       - name: Install Dependencies
         run: pip install requests
 
-      - name: Post Link-Out Quiz to Facebook
+      - name: Post Styled Quiz to Facebook
         env:
           FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
           FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
@@ -27,14 +27,18 @@ jobs:
           import os
           import requests
 
-          # Placeholder quiz post text with a call-to-action link 
-          # (Replace the URL with your hosted quiz page or Vercel app link)
+          # Using Unicode bold characters so the post stands out visually in the feed
           post_text = (
-              '📊 DAILY PMP INTERACTIVE PRACTICE CHALLENGE\n\n'
-              'Test your project management skills! Click below to open today\'s interactive quiz, '
-              'select your answer box, and get instant feedback with full PMP mindset explanations.\n\n'
-              '👉 Take the Quiz Here: https://your-quiz-site.vercel.app\n\n'
-              '#PMP #ProjectManagement #PMPExam #StudyPMP'
+              '📊 𝐃𝐀𝐈𝐋𝐘 𝐏𝐌𝐏 𝐏𝐑𝐀𝐂𝐓𝐈𝐂𝐄 𝐂𝐇𝐀𝐋𝐋𝐄𝐍𝐆𝐄\n\n'
+              'A project manager discovers a major compliance issue mid-project. What should they do first?\n\n'
+              '• 𝐀) Stop all work immediately\n'
+              '• 𝐁) Analyze the impact and consult the risk register\n'
+              '• 𝐂) Inform the sponsor right away\n'
+              '• 𝐃) Ignore it if it doesn’t impact the budget\n\n'
+              '━━━━━━━━━━━━━━━━━━\n\n'
+              '💬 𝙒𝐚𝐧𝐭 𝐢𝐧𝐬𝐭𝐚𝐧𝐭 𝐟𝐞𝐞𝐝𝐛𝐚𝐜𝐤?\n'
+              '👉 Click below to open a private chat and check your answer instantly:\n'
+              'https://m.me/your-facebook-page-username?ref=daily_quiz'
           )
 
           page_id = os.environ['FACEBOOK_PAGE_ID']
