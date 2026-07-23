@@ -1,0 +1,61 @@
+name: Daily PMP Facebook Auto-Poster
+
+on:
+  schedule:
+    - cron: '0 8 * * *' # Runs every day at 8:00 AM UTC
+  workflow_dispatch:
+
+jobs:
+  post-to-facebook:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: pip install google-genai requests
+
+      - name: Generate Content and Post to Facebook
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
+        run: |
+          python -c "
+          import os
+          from google import genai
+          import requests
+
+          client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
+          
+          prompt = (
+              'Generate 1 high-yield PMP exam practice question with multiple-choice options A-D, '
+              'clearly state the correct answer, provide a brief mindset explanation for why it is correct, '
+              'and conclude with a clear call-to-action including this affiliate link [Insert your link here]. '
+              'Format it cleanly as an engaging, ready-to-read Facebook post.'
+          )
+
+          response = client.models.generate_content(
+              model='gemini-2.5-flash',
+              contents=prompt,
+          )
+          
+          post_text = response.text
+
+          page_id = os.environ['FACEBOOK_PAGE_ID']
+          token = os.environ['FACEBOOK_ACCESS_TOKEN']
+          url = f'https://graph.facebook.com/v18.0/{page_id}/feed'
+          
+          payload = {
+              'message': post_text,
+              'access_token': token
+          }
+          
+          res = requests.post(url, data=payload)
+          print('Facebook Response:', res.json())
+          "
