@@ -1,10 +1,10 @@
-name: Debug Facebook Auto-Poster
+name: Daily PMP Facebook Auto-Poster
 
 on:
   workflow_dispatch:
 
 jobs:
-  debug-facebook:
+  post-to-facebook:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -18,7 +18,7 @@ jobs:
       - name: Install Dependencies
         run: pip install requests
 
-      - name: Run Detailed API Diagnostic
+      - name: Post Static Poll to Facebook
         env:
           FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
           FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
@@ -27,28 +27,27 @@ jobs:
           import os
           import requests
 
+          post_text = (
+              '📊 DAILY PMP PRACTICE POLL\n\n'
+              'A project manager discovers a major compliance issue mid-project. What should they do first?\n\n'
+              'A) Stop all work immediately\n'
+              'B) Analyze the impact and consult the risk register\n'
+              'C) Inform the sponsor right away\n'
+              'D) Ignore it if it doesn’t impact the budget\n\n'
+              'Correct Answer: B\n'
+              'Mindset: Always analyze impact before taking impulsive action.'
+          )
+
           page_id = os.environ['FACEBOOK_PAGE_ID']
           token = os.environ['FACEBOOK_ACCESS_TOKEN']
-
-          print('--- STEP 1: Testing Token Identity ---')
-          me_url = f'https://graph.facebook.com/v18.0/me?access_token={token}'
-          me_res = requests.get(me_url)
-          print('Token Owner Response:', me_res.json())
-
-          print('\n--- STEP 2: Verifying Page Permissions ---')
-          perms_url = f'https://graph.facebook.com/v18.0/{page_id}?fields=name,access_token,tasks&access_token={token}'
-          perms_res = requests.get(perms_url)
-          print('Page Details Response:', perms_res.json())
-
-          print('\n--- STEP 3: Attempting Test Post ---')
           url = f'https://graph.facebook.com/v18.0/{page_id}/feed'
+          
           payload = {
-              'message': '🛠️ DEBUG TEST: Checking feed visibility.',
+              'message': post_text,
               'published': 'true',
               'access_token': token
           }
           
           res = requests.post(url, data=payload)
-          print('Post API Status Code:', res.status_code)
-          print('Post API Full JSON Response:', res.json())
+          print('Facebook Response:', res.json())
           "
