@@ -2,7 +2,7 @@ name: Daily PMP Facebook Auto-Poster
 
 on:
   schedule:
-    - cron: '0 8 * * *' # Runs every day at 8:00 AM UTC
+    - cron: '0 8 * * *'
   workflow_dispatch:
 
 jobs:
@@ -45,7 +45,7 @@ jobs:
           )
 
           response = client.models.generate_content(
-              model='gemini-2.5-flash',
+              model='gemini-2.0-flash',
               contents=prompt,
           )
           
