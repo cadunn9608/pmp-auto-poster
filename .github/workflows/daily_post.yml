@@ -1,71 +1,87 @@
-name: Daily PMP Facebook Auto-Poster
+name: Daily PMP Post
 
 on:
   schedule:
-    - cron: '0 15 * * *' # Runs daily at 3:00 PM UTC (8:00 AM PST)
-  workflow_dispatch:
+    - cron: '0 13 * * *'  # Runs daily at 1:00 PM UTC
+  workflow_dispatch:      # Allows manual trigger from GitHub
 
 jobs:
   post-to-facebook:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
-      - name: Install Dependencies
-        run: pip install requests google-genai
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests google-genai
 
-      - name: Generate and Post Quiz via Gemini
+      - name: Run daily post script
         env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
           FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          FACEBOOK_APP_ID: ${{ secrets.FACEBOOK_APP_ID }}
+          FACEBOOK_APP_SECRET: ${{ secrets.FACEBOOK_APP_SECRET }}
         run: |
           python -c "
           import os
           import requests
           from google import genai
 
-          # Initialize Gemini client
+          # Initialize Gemini client using the correct SDK pattern
           client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
 
-          # Prompt Gemini to generate the PMP post content
-          prompt = '''
-          Generate a daily PMP practice post containing 4 multiple-choice questions in the exact style of the actual PMP exam.
-          Include options (A, B, C, D), the correct answer, and a clear mindset explanation for why it is correct.
-          Use bold Unicode characters for headers and options so it stands out visually on social media.
-          At the very bottom, add this exact affiliate link separator and text:
-          ━━━━━━━━━━━━━━━━━━
-          👉 **Launch your online business or prep journey today:** https://facebook.com/DailyPMPPrep
-          Make sure the answers and explanations are separated near the bottom with scroll-down visual buffers like:
-          .
-          🔽 **𝐒𝐂𝐑𝐎𝐋𝐋 𝐃𝐎𝐖𝐍 𝐅𝐎𝐑 𝐓𝐇𝐄 𝐀𝐍𝐒𝐖𝐄𝐑𝐒** 🔽
-          .
-          '''
+          # Prompt for Gemini to generate a PMP practice question
+          prompt = (
+              'Generate a challenging PMP exam practice question in multiple-choice format (A, B, C, D). '
+              'Include the correct answer and a brief explanation of the PMP mindset behind it.'
+          )
 
           response = client.models.generate_content(
               model='gemini-3.5-flash',
               contents=prompt,
           )
-          
           post_text = response.text
+
+          # Automatically exchange/refresh the Facebook token dynamically
+          app_id = os.environ['FACEBOOK_APP_ID']
+          app_secret = os.environ['FACEBOOK_APP_SECRET']
+          current_token = os.environ['FACEBOOK_ACCESS_TOKEN']
+
+          refresh_url = 'https://graph.facebook.com/v18.0/oauth/access_token'
+          refresh_params = {
+              'grant_type': 'fb_exchange_token',
+              'client_id': app_id,
+              'client_secret': app_secret,
+              'fb_exchange_token': current_token
+          }
+
+          refresh_res = requests.get(refresh_url, params=refresh_params).json()
+
+          if 'access_token' in refresh_res:
+              active_token = refresh_res['access_token']
+              print('Successfully refreshed token dynamically!')
+          else:
+              active_token = current_token
+              print('Using existing token fallback.')
 
           # Post to Facebook Page Feed
           page_id = os.environ['FACEBOOK_PAGE_ID']
-          token = os.environ['FACEBOOK_ACCESS_TOKEN']
-          url = f'https://graph.facebook.com/v18.0/{page_id}/feed'
-          
+          post_url = f'https://graph.facebook.com/v18.0/{page_id}/feed'
+
           payload = {
               'message': post_text,
               'published': 'true',
-              'access_token': token
+              'access_token': active_token
           }
-          
-          res = requests.post(url, data=payload)
+
+          res = requests.post(post_url, data=payload)
           print('Facebook Response:', res.json())
           "
