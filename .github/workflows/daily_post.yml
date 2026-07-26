@@ -1,6 +1,8 @@
 name: Daily PMP Facebook Auto-Poster
 
 on:
+  schedule:
+    - cron: '0 15 * * *' # Runs daily at 3:00 PM UTC (8:00 AM PST)
   workflow_dispatch:
 
 jobs:
@@ -16,36 +18,44 @@ jobs:
           python-version: '3.10'
 
       - name: Install Dependencies
-        run: pip install requests
+        run: pip install requests google-genai
 
-      - name: Post Complete Quiz to Facebook
+      - name: Generate and Post Quiz via Gemini
         env:
           FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
           FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           python -c "
           import os
           import requests
+          from google import genai
 
-          post_text = (
-              '📊 𝐃𝐀𝐈𝐋𝐘 𝐏𝐌𝐏 𝐏𝐑𝐀𝐂𝐓𝐈𝐂𝐄 𝐂𝐇𝐀𝐋𝐋𝐄𝐍𝐆𝐄\n\n'
-              'A project manager discovers a major compliance issue mid-project. What should they do first?\n\n'
-              '• 𝐀) Stop all work immediately\n'
-              '• 𝐁) Analyze the impact and consult the risk register\n'
-              '• 𝐂) Inform the sponsor right away\n'
-              '• 𝐃) Ignore it if it doesn’t impact the budget\n\n'
-              '━━━━━━━━━━━━━━━━━━\n\n'
-              '.\n'
-              '.\n'
-              '.\n'
-              '🔽 **𝐒𝐂𝐑𝐎𝐋𝐋 𝐃𝐎𝐖𝐍 𝐅𝐎𝐑 𝐓𝐇𝐄 𝐀𝐍𝐒𝐖𝐄𝐑** 🔽\n'
-              '.\n'
-              '.\n'
-              '.\n\n'
-              '🎯 **𝐂𝐎𝐑𝐑𝐄𝐂𝐓 𝐀𝐍𝐒𝐖𝐄𝐑: 𝐁**\n\n'
-              '💡 **𝐏𝐌𝐏 𝐌𝐢𝐧𝐝𝐬𝐞𝐭:** Always analyze the impact and refer to the risk management plan or risk register before taking impulsive action or escalating. Never stop work entirely or escalate before understanding the full scope of the issue.'
+          # Initialize Gemini client
+          client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
+
+          # Prompt Gemini to generate the PMP post content
+          prompt = '''
+          Generate a daily PMP practice post containing 4 multiple-choice questions in the exact style of the actual PMP exam.
+          Include options (A, B, C, D), the correct answer, and a clear mindset explanation for why it is correct.
+          Use bold Unicode characters for headers and options so it stands out visually on social media.
+          At the very bottom, add this exact affiliate link separator and text:
+          ━━━━━━━━━━━━━━━━━━
+          👉 **Launch your online business or prep journey today:** https://facebook.com/DailyPMPPrep
+          Make sure the answers and explanations are separated near the bottom with scroll-down visual buffers like:
+          .
+          🔽 **𝐒𝐂𝐑𝐎𝐋𝐋 𝐃𝐎𝐖𝐍 𝐅𝐎𝐑 𝐓𝐇𝐄 𝐀𝐍𝐒𝐖𝐄𝐑𝐒** 🔽
+          .
+          '''
+
+          response = client.models.generate_content(
+              model='gemini-2.5-flash',
+              contents=prompt,
           )
+          
+          post_text = response.text
 
+          # Post to Facebook Page Feed
           page_id = os.environ['FACEBOOK_PAGE_ID']
           token = os.environ['FACEBOOK_ACCESS_TOKEN']
           url = f'https://graph.facebook.com/v18.0/{page_id}/feed'
