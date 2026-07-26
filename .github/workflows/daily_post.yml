@@ -44,7 +44,7 @@ jobs:
           # Initialize Gemini client
           client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
 
-          # Prompt instructing Gemini with the revised cleaner CTA layout
+          # Prompt instructing Gemini to output only the core question, answer, and mindset
           prompt = (
               'Create an engaging, high-energy PMP exam practice post optimized for social media.\n'
               'Use catchy emojis to make key sections stand out visually.\n\n'
@@ -54,10 +54,7 @@ jobs:
               'CORRECT ANSWER:\n'
               '[Provide the correct option and letter]\n\n'
               'THE PMP MINDSET BREAKDOWN:\n'
-              '[Brief, punchy explanation of why this is the correct answer and how to think like a PMI project manager]\n\n'
-              'READY TO PASS YOUR PMP EXAM ON THE FIRST TRY?\n'
-              'Join 50,000 other students from 180 countries in top-rated training with Master of Project Academy:\n'
-              'https://masterofproject.com/'
+              '[Brief, punchy explanation of why this is the correct answer and how to think like a PMI project manager]'
           )
 
           response = client.models.generate_content(
@@ -66,19 +63,24 @@ jobs:
           )
           ai_text = response.text
 
-          # Apply Unicode bolding to all key headers and the multi-line CTA section
+          # Build the bold Unicode headers and the guaranteed bottom CTA block programmatically
           header1 = '🚨 ' + make_bold('PMP PRACTICE QUESTION OF THE DAY') + ' 🚨'
           header2 = '✅ ' + make_bold('CORRECT ANSWER:')
           header3 = '🧠 ' + make_bold('THE PMP MINDSET BREAKDOWN:')
-          cta_line1 = '👇 ' + make_bold('READY TO PASS YOUR PMP EXAM ON THE FIRST TRY?')
-          cta_line2 = make_bold('Join 50,000 other students from 180 countries in top-rated training with Master of Project Academy:')
 
-          # Replace plain text sections with our clean Unicode bold versions
+          cta_block = (
+              '\n\n👇 ' + make_bold('READY TO PASS YOUR PMP EXAM ON THE FIRST TRY?') + '\n' +
+              make_bold('Join 50,000 other students from 180 countries in top-rated training with Master of Project Academy:') + '\n' +
+              'https://masterofproject.com/'
+          )
+
+          # Replace plain text headers with our clean Unicode bold versions
           post_text = ai_text.replace('PMP PRACTICE QUESTION OF THE DAY', header1)
-          post_text = ai_text.replace('CORRECT ANSWER:', header2)
-          post_text = ai_text.replace('THE PMP MINDSET BREAKDOWN:', header3)
-          post_text = post_text.replace('READY TO PASS YOUR PMP EXAM ON THE FIRST TRY?', cta_line1)
-          post_text = post_text.replace('Join 50,000 other students from 180 countries in top-rated training with Master of Project Academy:', cta_line2)
+          post_text = post_text.replace('CORRECT ANSWER:', header2)
+          post_text = post_text.replace('THE PMP MINDSET BREAKDOWN:', header3)
+
+          # Append the fully bolded CTA block securely to the end of the post
+          post_text = post_text + cta_block
 
           # Automatically exchange/refresh the Facebook token dynamically
           app_id = os.environ['FACEBOOK_APP_ID']
