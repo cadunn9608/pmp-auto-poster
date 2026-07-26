@@ -2,8 +2,9 @@ name: Daily PMP Reel Automation
 
 on:
   schedule:
+    # Runs every day at 8:00 AM UTC
     - cron: '0 8 * * *'
-  workflow_dispatch:
+  workflow_dispatch: # Allows you to manually trigger it from GitHub anytime
 
 jobs:
   generate-reel:
@@ -18,7 +19,7 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Install system dependencies
+    - name: Install system dependencies (for MoviePy / ImageMagick)
       run: |
         sudo apt-get update
         sudo apt-get install -y ffmpeg libmagickwand-dev
