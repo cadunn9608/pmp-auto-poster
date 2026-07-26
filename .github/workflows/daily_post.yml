@@ -44,11 +44,10 @@ jobs:
           # Initialize Gemini client
           client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
 
-          # Prompt instructing Gemini to output only the core question, answer, and mindset
+          # Prompt instructing Gemini to output exact clean headings without emojis or markdown
           prompt = (
-              'Create an engaging, high-energy PMP exam practice post optimized for social media.\n'
-              'Use catchy emojis to make key sections stand out visually.\n\n'
-              'Structure it exactly like this without using any markdown asterisks:\n'
+              'Create an engaging, high-energy PMP exam practice post optimized for social media.\n\n'
+              'Structure it exactly like this without using any markdown asterisks or emojis in the headings:\n'
               'PMP PRACTICE QUESTION OF THE DAY\n'
               '[Insert a realistic, scenario-based multiple-choice question here - Options A, B, C, D]\n\n'
               'CORRECT ANSWER:\n'
@@ -63,7 +62,7 @@ jobs:
           )
           ai_text = response.text
 
-          # Build the bold Unicode headers and the guaranteed bottom CTA block programmatically
+          # Build the exact bold Unicode headers with single emojis cleanly
           header1 = '🚨 ' + make_bold('PMP PRACTICE QUESTION OF THE DAY') + ' 🚨'
           header2 = '✅ ' + make_bold('CORRECT ANSWER:')
           header3 = '🧠 ' + make_bold('THE PMP MINDSET BREAKDOWN:')
@@ -74,12 +73,12 @@ jobs:
               'https://masterofproject.com/'
           )
 
-          # Replace plain text headers with our clean Unicode bold versions
+          # Replace plain text headers cleanly
           post_text = ai_text.replace('PMP PRACTICE QUESTION OF THE DAY', header1)
           post_text = post_text.replace('CORRECT ANSWER:', header2)
           post_text = post_text.replace('THE PMP MINDSET BREAKDOWN:', header3)
 
-          # Append the fully bolded CTA block securely to the end of the post
+          # Append the fully bolded CTA block securely to the end
           post_text = post_text + cta_block
 
           # Automatically exchange/refresh the Facebook token dynamically
