@@ -24,11 +24,11 @@ jobs:
 
       - name: Run daily post script
         env:
-           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-           FB_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
-           FB_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
-           FB_APP_ID: ${{ secrets.FACEBOOK_APP_ID }}
-           FB_APP_SECRET: ${{ secrets.FACEBOOK_APP_SECRET }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
+          FACEBOOK_APP_ID: ${{ secrets.FACEBOOK_APP_ID }}
+          FACEBOOK_APP_SECRET: ${{ secrets.FACEBOOK_APP_SECRET }}
         run: |
           python -c "
           import os
@@ -69,14 +69,14 @@ jobs:
 
           cta_block = (
               '\n\n👇 ' + make_bold('READY TO PASS YOUR PMP EXAM ON THE FIRST TRY?') + '\n' +
-              make_bold('Join 50,000 other students from 180 countries with top-rated training from Master of Project Academy:') + '\n' +
+              make_bold('Join 50,000 other students from 180 countries in top-rated training with Master of Project Academy:') + '\n' +
               'https://masterofproject.com/'
           )
 
           # Replace plain text headers cleanly
           post_text = ai_text.replace('PMP PRACTICE QUESTION OF THE DAY', header1)
-          post_text = post_text.replace('CORRECT ANSWER:', header2)
-          post_text = post_text.replace('THE PMP MINDSET BREAKDOWN:', header3)
+          post_text = ai_text.replace('CORRECT ANSWER:', header2)
+          post_text = ai_text.replace('THE PMP MINDSET BREAKDOWN:', header3)
 
           # Append the fully bolded CTA block securely to the end
           post_text = post_text + cta_block
