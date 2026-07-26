@@ -24,11 +24,11 @@ jobs:
 
       - name: Run daily post script
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
-          FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
-          FACEBOOK_APP_ID: ${{ secrets.FACEBOOK_APP_ID }}
-          FACEBOOK_APP_SECRET: ${{ secrets.FACEBOOK_APP_SECRET }}
+           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+           FB_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+           FB_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
+           FB_APP_ID: ${{ secrets.FACEBOOK_APP_ID }}
+           FB_APP_SECRET: ${{ secrets.FACEBOOK_APP_SECRET }}
         run: |
           python -c "
           import os
