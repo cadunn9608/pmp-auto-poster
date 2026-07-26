@@ -35,13 +35,20 @@ jobs:
           import requests
           from google import genai
 
-          # Initialize Gemini client using the correct SDK pattern
+          # Initialize Gemini client
           client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
 
-          # Prompt for Gemini to generate a PMP practice question
+          # High-engagement prompt with catchy emojis and affiliate placeholder
           prompt = (
-              'Generate a challenging PMP exam practice question in multiple-choice format (A, B, C, D). '
-              'Include the correct answer and a brief explanation of the PMP mindset behind it.'
+              'Create an engaging, high-energy PMP exam practice post optimized for social media.\n'
+              'Use catchy emojis to make key sections stand out visually.\n\n'
+              'Structure it exactly like this:\n'
+              '🚨 **PMP PRACTICE QUESTION OF THE DAY** 🚨\n'
+              '[Insert a realistic, scenario-based multiple-choice question here - Options A, B, C, D]\n\n'
+              '💡 **Drop your answer in the comments below!** I will reply with the correct answer later today.\n\n'
+              '🧠 **The PMP Mindset Tip:** [Brief, punchy explanation of how to think like a PMI project manager]\n\n'
+              '👇 **Ready to pass your PMP exam on the first try?** Check out top-rated training with Master of Project Academy:\n'
+              '[INSERT_AWIN_AFFILIATE_LINK_HERE]'
           )
 
           response = client.models.generate_content(
