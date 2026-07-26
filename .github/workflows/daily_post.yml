@@ -38,15 +38,15 @@ jobs:
           # Initialize Gemini client
           client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
 
-          # Corrected prompt with full question, answer, mindset, and affiliate link
+          # Prompt with exact bold formatting requested
           prompt = (
               'Create an engaging, high-energy PMP exam practice post optimized for social media.\n'
               'Use catchy emojis to make key sections stand out visually.\n\n'
-              'Structure it exactly like this:\n'
-              '🚨 **PMP PRACTICE QUESTION OF THE DAY** 🚨\n'
+              'Structure it exactly like this with the specific text headers in bold:\n'
+              '**🚨 PMP PRACTICE QUESTION OF THE DAY 🚨**\n'
               '[Insert a realistic, scenario-based multiple-choice question here - Options A, B, C, D]\n\n'
-              '✅ **Correct Answer:** [Provide the correct option and letter]\n\n'
-              '🧠 **The PMP Mindset Breakdown:** [Brief, punchy explanation of why this is the correct answer and how to think like a PMI project manager]\n\n'
+              '**✅ CORRECT ANSWER:** [Provide the correct option and letter]\n\n'
+              '**🧠 THE PMP MINDSET BREAKDOWN:** [Brief, punchy explanation of why this is the correct answer and how to think like a PMI project manager]\n\n'
               '👇 **Ready to pass your PMP exam on the first try?** Check out top-rated training with Master of Project Academy:\n'
               '[INSERT_AWIN_AFFILIATE_LINK_HERE]'
           )
