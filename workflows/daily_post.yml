@@ -45,15 +45,11 @@ jobs:
           Make sure the answers and explanations are separated near the bottom with scroll-down visual buffers like:
           .
           .
-          .
           🔽 **𝐒𝐂𝐑𝐎𝐋𝐋 𝐃𝐎𝐖𝐍 𝐅𝐎𝐑 𝐓𝐇𝐄 𝐀𝐍𝐒𝐖𝐄𝐑𝐒** 🔽
           .
-          .
-          .
           '''
-
           response = client.models.generate_content(
-              model='gemini-2.5-flash',
+              model='gemini-2.0-flash',
               contents=prompt,
           )
           
