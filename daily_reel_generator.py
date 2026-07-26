@@ -7,6 +7,33 @@ from moviepy import ImageClip, TextClip, CompositeVideoClip, ColorClip
 # Initialize Gemini Client
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
+def get_long_lived_token():
+    """Automatically exchanges and refreshes the Facebook token to prevent expiration."""
+    app_id = os.environ.get("FB_APP_ID")
+    app_secret = os.environ.get("FB_APP_SECRET")
+    current_token = os.environ.get("FB_ACCESS_TOKEN")
+    
+    if not app_id or not app_secret or not current_token:
+        print("App ID or App Secret not found. Using standard token as-is.")
+        return current_token
+
+    print("Requesting automatic token refresh from Meta...")
+    url = "https://graph.facebook.com/v19.0/oauth/access_token"
+    params = {
+        "grant_type": "fb_exchange_token",
+        "client_id": app_id,
+        "client_secret": app_secret,
+        "fb_exchange_token": current_token
+    }
+    
+    response = requests.get(url, params=params).json()
+    if "access_token" in response:
+        print("Successfully refreshed Facebook access token.")
+        return response["access_token"]
+    else:
+        print("Token exchange notice:", response)
+        return current_token
+
 def generate_reel_content():
     """Uses Gemini to generate the PMP question, answers, and caption."""
     prompt = """
@@ -62,12 +89,12 @@ def create_vertical_reel(character_image_path, output_filename="daily_pmp_reel.m
     print(f"Reel successfully created: {output_filename}")
 
 def post_reel_to_facebook(video_path, caption_text):
-    """Automatically publishes an official Facebook Reel with deep HTTP try-except debugging."""
+    """Automatically publishes an official Facebook Reel using the refreshed token."""
     page_id = os.environ.get("FB_PAGE_ID")
-    access_token = os.environ.get("FB_ACCESS_TOKEN")
+    access_token = get_long_lived_token()
     
     if not page_id or not access_token:
-        print("ERROR: Facebook credentials (FB_PAGE_ID or FB_ACCESS_TOKEN) are missing from environment secrets.")
+        print("ERROR: Facebook credentials are missing.")
         return
 
     url = f"https://graph.facebook.com/v19.0/{page_id}/video_reels"
@@ -85,7 +112,7 @@ def post_reel_to_facebook(video_path, caption_text):
         
         init_data = init_response.json()
         if "video_id" not in init_data:
-            print("ERROR: 'video_id' missing from Meta init response. Check if your access token has page permissions.")
+            print("ERROR: 'video_id' missing from Meta init response.")
             return
             
         video_id = init_data["video_id"]
