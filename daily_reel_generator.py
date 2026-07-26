@@ -93,7 +93,7 @@ def create_vertical_reel(character_image_path, output_filename="daily_pmp_reel.m
     print(f"Reel successfully created: {output_filename}")
 
 def post_reel_to_facebook(video_path, caption_text):
-    """Automatically publishes an official Facebook Reel with isolated binary stream error handling."""
+    """Automatically publishes an official Facebook Reel with proper binary upload authorization."""
     page_id = os.environ.get("FB_PAGE_ID")
     access_token = get_long_lived_token()
     
@@ -122,16 +122,20 @@ def post_reel_to_facebook(video_path, caption_text):
         video_id = init_data["video_id"]
         upload_url = init_data["upload_url"]
         
-        # Step 2: Stream the local video file binary directly to Meta's upload URL
-        print(f"[DEBUG] Container created successfully (ID: {video_id}). Streaming local video binary...")
+        # Step 2: Stream the local video file binary to Meta's upload URL with explicit Auth header
+        print(f"[DEBUG] Container created successfully (ID: {video_id}). Streaming local video binary with authorization...")
         
         if not os.path.exists(video_path):
             print(f"[DEBUG ERROR] Video file not found at path: {video_path}")
             return
 
+        headers = {
+            "Authorization": f"OAuth {access_token}"
+        }
+        
         with open(video_path, "rb") as video_file:
-            files = {"source": video_file}
-            upload_response = requests.post(upload_url, files=files)
+            files = {"source": (video_path, video_file, "video/mp4")}
+            upload_response = requests.post(upload_url, headers=headers, files=files)
             
         print(f"[DEBUG] Binary Upload HTTP Status Code: {upload_response.status_code}")
         print(f"[DEBUG] Binary Upload Response Text: {upload_response.text}")
