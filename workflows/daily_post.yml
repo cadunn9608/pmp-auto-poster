@@ -2,7 +2,7 @@ name: Daily PMP Post
 
 on:
   schedule:
-    - cron: '0 13 * * *'  # Runs daily at 1:00 PM UTC
+    - cron: '0 15 * * *'  # Runs daily at 8:00 AM PDT (3:00 PM UTC)
   workflow_dispatch:      # Allows manual trigger from GitHub
 
 jobs:
@@ -38,15 +38,15 @@ jobs:
           # Initialize Gemini client
           client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
 
-          # High-engagement prompt with catchy emojis and affiliate placeholder
+          # Corrected prompt with full question, answer, mindset, and affiliate link
           prompt = (
               'Create an engaging, high-energy PMP exam practice post optimized for social media.\n'
               'Use catchy emojis to make key sections stand out visually.\n\n'
               'Structure it exactly like this:\n'
               '🚨 **PMP PRACTICE QUESTION OF THE DAY** 🚨\n'
               '[Insert a realistic, scenario-based multiple-choice question here - Options A, B, C, D]\n\n'
-              '💡 **Drop your answer in the comments below!** I will reply with the correct answer later today.\n\n'
-              '🧠 **The PMP Mindset Tip:** [Brief, punchy explanation of how to think like a PMI project manager]\n\n'
+              '✅ **Correct Answer:** [Provide the correct option and letter]\n\n'
+              '🧠 **The PMP Mindset Breakdown:** [Brief, punchy explanation of why this is the correct answer and how to think like a PMI project manager]\n\n'
               '👇 **Ready to pass your PMP exam on the first try?** Check out top-rated training with Master of Project Academy:\n'
               '[INSERT_AWIN_AFFILIATE_LINK_HERE]'
           )
