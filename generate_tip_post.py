@@ -10,7 +10,7 @@ from google.genai import types
 
 def make_bold(text):
     normal = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-    bold = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵"
+    bold = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝗅𝘆𝘇𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵"
     return text.translate(str.maketrans(normal, bold))
 
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
@@ -104,7 +104,7 @@ for part in result_img.candidates[0].content.parts:
 if not image_bytes:
     raise Exception("Failed to generate and extract image bytes from Gemini response.")
 
-# 3. Overlay with Wider and Lower Text Box Placement
+# 3. Overlay with Maximum Width Box and Tighter Wrapping
 print("Overlaying PMP tip on image...")
 img = Image.open(image_bytes).convert("RGB")
 width, height = img.size
@@ -117,18 +117,18 @@ except IOError:
 
 draw = ImageDraw.Draw(img)
 
-# Much wider margin (spanning 94% of the image width)
-margin = int(width * 0.03)
+# Extremely wide margin (spanning 96% of the image width)
+margin = int(width * 0.02)
 text_box_w = width - (2 * margin)
 
-# Adjusted character limit for the wider box width
-char_limit = int(text_box_w / (font_size * 0.46))
+# Adjusted character limit with a safer wrap ratio to prevent right-side overflow
+char_limit = int(text_box_w / (font_size * 0.44))
 wrapped_lines = textwrap.wrap(ai_tip_raw, width=char_limit)
 
 line_height = font_size + 12
 text_box_h = (len(wrapped_lines) * line_height) + 40
 
-# Positioned much lower down near the bottom edge
+# Positioned near the bottom edge
 text_box_y = height - text_box_h - int(height * 0.03)
 text_box_x = margin
 
@@ -150,7 +150,7 @@ for line in wrapped_lines:
     current_y += line_height
 
 img.save(image_path)
-print("Wider and lower text box successfully applied!")
+print("Max-width text box successfully applied!")
 
 # 4. Format Social Media Caption Text
 post_header = make_bold(header_tag)
