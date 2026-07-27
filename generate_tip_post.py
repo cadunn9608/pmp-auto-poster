@@ -10,12 +10,12 @@ from google.genai import types
 
 def make_bold(text):
     normal = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-    bold = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝗅𝗭𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵"
+    bold = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵"
     return text.translate(str.maketrans(normal, bold))
 
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
-# 1. Generate the Daily PMP Tip Text with robust model fallbacks
+# 1. Generate the Daily PMP Tip Text with stable current model fallbacks
 tip_prompt = (
     "Create a short, punchy, high-value daily PMP exam study tip optimized for social media. "
     "Focus on a core project management principle, formula, or agile/predictive mindset concept. "
@@ -23,7 +23,7 @@ tip_prompt = (
 )
 
 ai_tip_raw = None
-models_to_try = ["gemini-3.5-flash", "gemini-2.5-flash"]
+models_to_try = ["gemini-3.5-flash", "gemini-3.1-flash"]
 
 for model_name in models_to_try:
     print(f"Attempting tip generation using model: {model_name}")
@@ -164,14 +164,4 @@ active_token = refresh_res.get("access_token", current_token)
 
 # 6. Post the Branded Photo + Caption to Facebook Page Feed
 page_id = os.environ["FACEBOOK_PAGE_ID"]
-post_url = f"https://graph.facebook.com/v18.0/{page_id}/photos"
-
-with open(image_path, "rb") as img_file:
-    files = {"source": img_file}
-    payload = {
-        "caption": post_text,
-        "published": "true",
-        "access_token": active_token
-    }
-    res = requests.post(post_url, data=payload, files=files)
-    print("Facebook Photo Post Response:", res.json())
+post_url =
