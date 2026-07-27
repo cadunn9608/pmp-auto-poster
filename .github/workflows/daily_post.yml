@@ -46,7 +46,6 @@ jobs:
           # Initialize Gemini client
           client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
 
-          # Prompt instructing Gemini to output exactly the expected tag structures
           prompt = (
               'Create an engaging, high-energy PMP exam practice post optimized for social media featuring EXACTLY FOUR (4) rigorous, situational multiple-choice questions in the precise style of the actual PMP exam.\n\n'
               'Structure the post using these exact plain text headings without markdown asterisks or emojis:\n'
@@ -58,9 +57,9 @@ jobs:
               '[Provide concise mindset explanations]'
           )
 
-          # Fallback logic: Try gemini-3.5-flash first, fallback to gemini-1.5-pro if 503 error occurs
+          # Fallback logic: Try gemini-3.5-flash first, fallback to gemini-2.5-flash if errors occur
           ai_text = None
-          models_to_try = ['gemini-3.5-flash', 'gemini-1.5-pro']
+          models_to_try = ['gemini-3.5-flash', 'gemini-2.5-flash']
 
           for model_name in models_to_try:
               print(f'Attempting content generation using model: {model_name}')
@@ -72,9 +71,6 @@ jobs:
                   ai_text = response.text
                   print(f'Successfully generated content using {model_name}!')
                   break
-              except ServerError as e:
-                  print(f'Model {model_name} encountered a 503 Server Error. Trying next model...')
-                  time.sleep(5)
               except Exception as e:
                   print(f'Model {model_name} failed with error: {e}. Trying next model...')
                   time.sleep(5)
