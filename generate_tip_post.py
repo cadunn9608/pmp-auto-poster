@@ -95,7 +95,6 @@ print("Overlaying PMP tip on image...")
 img = Image.open(image_bytes).convert("RGB")
 width, height = img.size
 
-# Larger font size for maximum visual impact (~3.6% of height)
 font_size = max(20, int(height * 0.036))
 try:
     font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf", font_size)
@@ -112,12 +111,9 @@ wrapped_lines = textwrap.wrap(ai_tip_raw, width=char_limit)
 
 line_height = font_size + 12
 text_box_h = (len(wrapped_lines) * line_height) + 44
-
-# Positioned slightly higher up from the bottom edge
 text_box_y = height - text_box_h - int(height * 0.09)
 text_box_x = margin
 
-# Draw semi-transparent dark background box with crisp borders
 overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
 overlay_draw = ImageDraw.Draw(overlay)
 overlay_draw.rounded_rectangle(
@@ -164,4 +160,14 @@ active_token = refresh_res.get("access_token", current_token)
 
 # 6. Post the Branded Photo + Caption to Facebook Page Feed
 page_id = os.environ["FACEBOOK_PAGE_ID"]
-post_url =
+post_url = f"https://graph.facebook.com/v18.0/{page_id}/photos"
+
+with open(image_path, "rb") as img_file:
+    files = {"source": img_file}
+    payload = {
+        "caption": post_text,
+        "published": "true",
+        "access_token": active_token
+    }
+    res = requests.post(post_url, data=payload, files=files)
+    print("Facebook Photo Post Response:", res.json())
