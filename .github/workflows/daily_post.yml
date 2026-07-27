@@ -45,7 +45,7 @@ jobs:
           # Initialize Gemini client
           client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
 
-          # Prompt instructing Gemini to output exactly 1 question with the exact singular headings
+          # Prompt instructing Gemini to output exact tags with exact casing
           prompt = (
               'Create an engaging, high-energy PMP exam practice post optimized for social media featuring EXACTLY ONE (1) rigorous, situational multiple-choice question in the precise style of the actual PMP exam.\n\n'
               'Structure the post using these exact plain text headings without markdown asterisks or emojis:\n'
@@ -78,7 +78,7 @@ jobs:
           if not ai_text:
               raise Exception('All models failed to generate content due to high demand or server errors.')
 
-          # Build the exact bold Unicode headers with single emojis cleanly matching the singular text
+          # Build the exact bold Unicode headers with single emojis cleanly
           header1 = '🚨 ' + make_bold('PMP PRACTICE QUESTION OF THE DAY') + ' 🚨'
           header2 = '✅ ' + make_bold('CORRECT ANSWER:')
           header3 = '🧠 ' + make_bold('THE PMP MINDSET BREAKDOWN:')
@@ -89,13 +89,21 @@ jobs:
               'https://masterofproject.com/'
           )
 
-          # Replace plain text headers with our bolded Unicode versions
-          post_text = ai_text.replace('PMP PRACTICE QUESTION OF THE DAY', header1)
-          post_text = ai_text.replace('CORRECT ANSWER:', header2)
-          post_text = ai_text.replace('THE PMP MINDSET BREAKDOWN:', header3)
+          # Replace all potential casing variations to guarantee formatting hits
+          ai_text = ai_text.replace('PMP PRACTICE QUESTION OF THE DAY', header1)
+          ai_text = ai_text.replace('Pmp Practice Question Of The Day', header1)
+          ai_text = ai_text.replace('pmp practice question of the day', header1)
+
+          ai_text = ai_text.replace('CORRECT ANSWER:', header2)
+          ai_text = ai_text.replace('Correct Answer:', header2)
+          ai_text = ai_text.replace('correct answer:', header2)
+
+          ai_text = ai_text.replace('THE PMP MINDSET BREAKDOWN:', header3)
+          ai_text = ai_text.replace('The Pmp Mindset Breakdown:', header3)
+          ai_text = ai_text.replace('the pmp mindset breakdown:', header3)
 
           # Append the fully bolded CTA block securely to the end
-          post_text = post_text + cta_block
+          post_text = ai_text + cta_block
 
           # Automatically exchange/refresh the Facebook token dynamically
           app_id = os.environ['FACEBOOK_APP_ID']
