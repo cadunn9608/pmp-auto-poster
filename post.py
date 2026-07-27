@@ -3,6 +3,7 @@ import requests
 import random
 from datetime import date
 from google import genai
+from google.genai import types
 from PIL import Image
 import io
 
@@ -27,7 +28,7 @@ BACKGROUND_THEMES = [
 ]
 
 def generate_pmp_tip():
-    """Generates a daily PMP tip using Gemini with updated available model identifiers."""
+    """Generates a daily PMP tip using Gemini with fallback model logic."""
     prompt = (
         "Write a concise, professional PMP Tip of the Day focusing on project management "
         "best practices, Agile, or PMI frameworks. Keep it under 60 words."
@@ -59,10 +60,14 @@ def generate_dynamic_background(theme):
         "frame. The composition should have open space for overlaying characters "
         "and a text box."
     )
-    response = client.models.images.generate(
+    response = client.models.generate_images(
+        model='imagen-3.0-generate-001',
         prompt=prompt,
-        model="imagen-3.0-generate-001",
-        aspect_ratio="16:9"
+        config=types.GenerateImagesConfig(
+            number_of_images=1,
+            aspect_ratio="16:9",
+            output_mime_type="image/jpeg",
+        )
     )
     image_url = response.generated_images[0].image.url
     image_response = requests.get(image_url)
