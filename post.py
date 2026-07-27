@@ -27,16 +27,27 @@ BACKGROUND_THEMES = [
 ]
 
 def generate_pmp_tip():
-    """Generates a daily PMP tip using Gemini."""
+    """Generates a daily PMP tip using Gemini with fallback model logic."""
     prompt = (
         "Write a concise, professional PMP Tip of the Day focusing on project management "
         "best practices, Agile, or PMI frameworks. Keep it under 60 words."
     )
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt,
-    )
-    return response.text
+    models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+    
+    for model_name in models_to_try:
+        try:
+            print(f"Trying to generate tip with model: {model_name}...")
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+            )
+            if response and response.text:
+                return response.text
+        except Exception as e:
+            print(f"Model {model_name} failed with error: {e}")
+            continue
+            
+    raise Exception("All model generation attempts failed.")
 
 def generate_dynamic_background(theme):
     """Generates a background image using Gemini based on a theme with 3D Pixar style."""
