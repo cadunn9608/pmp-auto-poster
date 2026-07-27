@@ -30,8 +30,6 @@ jobs:
           FACEBOOK_APP_ID: ${{ secrets.FACEBOOK_APP_ID }}
           FACEBOOK_APP_SECRET: ${{ secrets.FACEBOOK_APP_SECRET }}
         run: |
-          python post.py
-        run: |
           python -c "
           import os
           import time
