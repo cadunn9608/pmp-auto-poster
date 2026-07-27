@@ -35,7 +35,6 @@ jobs:
           import time
           import requests
           from google import genai
-          from google.genai.errors import ServerError
 
           # Helper function to convert regular text to Unicode bold characters for Facebook
           def make_bold(text):
@@ -46,15 +45,16 @@ jobs:
           # Initialize Gemini client
           client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
 
+          # Prompt instructing Gemini to output exactly 1 question with the exact singular headings
           prompt = (
-              'Create an engaging, high-energy PMP exam practice post optimized for social media featuring EXACTLY FOUR (4) rigorous, situational multiple-choice questions in the precise style of the actual PMP exam.\n\n'
+              'Create an engaging, high-energy PMP exam practice post optimized for social media featuring EXACTLY ONE (1) rigorous, situational multiple-choice question in the precise style of the actual PMP exam.\n\n'
               'Structure the post using these exact plain text headings without markdown asterisks or emojis:\n'
               'PMP PRACTICE QUESTION OF THE DAY\n'
-              '[Insert the 4 questions, options A, B, C, D here]\n\n'
+              '[Insert the single question and options A, B, C, D here]\n\n'
               'CORRECT ANSWER:\n'
-              '[Provide the correct answers for each]\n\n'
+              '[Provide the correct option and letter]\n\n'
               'THE PMP MINDSET BREAKDOWN:\n'
-              '[Provide concise mindset explanations]'
+              '[Provide the concise mindset explanation]'
           )
 
           # Fallback logic: Try gemini-3.5-flash first, fallback to gemini-2.5-flash if errors occur
@@ -78,7 +78,7 @@ jobs:
           if not ai_text:
               raise Exception('All models failed to generate content due to high demand or server errors.')
 
-          # Build the exact bold Unicode headers with single emojis cleanly
+          # Build the exact bold Unicode headers with single emojis cleanly matching the singular text
           header1 = '🚨 ' + make_bold('PMP PRACTICE QUESTION OF THE DAY') + ' 🚨'
           header2 = '✅ ' + make_bold('CORRECT ANSWER:')
           header3 = '🧠 ' + make_bold('THE PMP MINDSET BREAKDOWN:')
