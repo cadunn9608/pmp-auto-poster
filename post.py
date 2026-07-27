@@ -61,16 +61,16 @@ def generate_dynamic_background(theme):
         "and a text box."
     )
     
-    # Using generate_content with a multimodal/image generation capable model endpoint
+    # Use the Gemini image-generation model endpoint
     response = client.models.generate_content(
-        model='gemini-2.5-flash',
+        model='gemini-2.5-flash-image',
         contents=prompt,
         config=types.GenerateContentConfig(
-            response_mime_type="image/jpeg"
+            response_modalities=["TEXT", "IMAGE"],
         )
     )
     
-    # Extract image bytes from the response parts
+    # Extract image bytes from the response
     for part in response.candidates[0].content.parts:
         if part.inline_data and part.inline_data.data:
             return Image.open(io.BytesIO(part.inline_data.data))
@@ -80,7 +80,7 @@ def generate_dynamic_background(theme):
 def composite_final_image(background_pil):
     """Layers characters and the text box onto the background."""
     print("Compositing final image...")
-    canvas = background_pil.copy()
+    canvas = background_pil.convert("RGBA")
 
     for asset_path in CHARACTER_ASSETS:
         if os.path.exists(asset_path):
@@ -95,7 +95,8 @@ def composite_final_image(background_pil):
     else:
         print(f"Warning: Text box asset not found at {TEXT_BOX_ASSET}")
 
-    canvas.save(OUTPUT_IMAGE_NAME, "PNG")
+    final_output = canvas.convert("RGB")
+    final_output.save(OUTPUT_IMAGE_NAME, "PNG")
     print(f"Saved final image to {OUTPUT_IMAGE_NAME}")
 
 def post_to_facebook(image_path, caption):
