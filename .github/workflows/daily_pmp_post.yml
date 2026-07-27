@@ -49,7 +49,7 @@ jobs:
           tip_prompt = (
               "Create a short, punchy, high-value daily PMP exam study tip optimized for social media. "
               "Focus on a core project management principle, formula, or agile/predictive mindset concept. "
-              "Structure it with a clear header reading 'DAILY PMP TIP' followed by the tip content."
+              "Structure it with a clear header reading DAILY PMP TIP followed by the tip content."
           )
           
           response_text = client.models.generate_content(
