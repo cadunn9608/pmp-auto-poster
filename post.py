@@ -27,12 +27,12 @@ BACKGROUND_THEMES = [
 ]
 
 def generate_pmp_tip():
-    """Generates a daily PMP tip using Gemini with fallback model logic."""
+    """Generates a daily PMP tip using Gemini with updated available model identifiers."""
     prompt = (
         "Write a concise, professional PMP Tip of the Day focusing on project management "
         "best practices, Agile, or PMI frameworks. Keep it under 60 words."
     )
-    models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+    models_to_try = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.1-flash-lite"]
     
     for model_name in models_to_try:
         try:
