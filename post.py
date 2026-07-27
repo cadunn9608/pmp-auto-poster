@@ -60,18 +60,22 @@ def generate_dynamic_background(theme):
         "frame. The composition should have open space for overlaying characters "
         "and a text box."
     )
-    response = client.models.generate_images(
-        model='imagen-3.0-generate-001',
-        prompt=prompt,
-        config=types.GenerateImagesConfig(
-            number_of_images=1,
-            aspect_ratio="16:9",
-            output_mime_type="image/jpeg",
+    
+    # Using generate_content with a multimodal/image generation capable model endpoint
+    response = client.models.generate_content(
+        model='gemini-2.5-flash',
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="image/jpeg"
         )
     )
-    image_url = response.generated_images[0].image.url
-    image_response = requests.get(image_url)
-    return Image.open(io.BytesIO(image_response.content))
+    
+    # Extract image bytes from the response parts
+    for part in response.candidates[0].content.parts:
+        if part.inline_data and part.inline_data.data:
+            return Image.open(io.BytesIO(part.inline_data.data))
+            
+    raise Exception("Failed to generate background image content.")
 
 def composite_final_image(background_pil):
     """Layers characters and the text box onto the background."""
