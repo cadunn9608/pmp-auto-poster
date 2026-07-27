@@ -10,12 +10,12 @@ from google.genai import types
 
 def make_bold(text):
     normal = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-    bold = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵"
+    bold = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝗅𝗭𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵"
     return text.translate(str.maketrans(normal, bold))
 
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
-# 1. Generate the Daily PMP Tip Text with stable current model fallbacks
+# 1. Generate the Daily PMP Tip Text with model fallbacks
 tip_prompt = (
     "Create a short, punchy, high-value daily PMP exam study tip optimized for social media. "
     "Focus on a core project management principle, formula, or agile/predictive mindset concept. "
@@ -23,9 +23,9 @@ tip_prompt = (
 )
 
 ai_tip_raw = None
-models_to_try = ["gemini-3.5-flash", "gemini-3.1-flash"]
+text_models_to_try = ["gemini-3.5-flash", "gemini-3.1-flash"]
 
-for model_name in models_to_try:
+for model_name in text_models_to_try:
     print(f"Attempting tip generation using model: {model_name}")
     try:
         response_text = client.models.generate_content(
@@ -71,14 +71,28 @@ image_prompt = (
     "Bright cinematic lighting, charming details, vibrant professional colors, high quality 3D render."
 )
 
+# Image generation with built-in retry/fallback handling for 503 errors
+result_img = None
+image_models_to_try = ["gemini-3.1-flash-image", "gemini-3.5-flash"]
+
 print(f"Generating random daily image: {selected_animals} in {selected_setting}...")
-result_img = client.models.generate_content(
-    model="gemini-3.1-flash-image",
-    contents=image_prompt,
-    config=types.GenerateContentConfig(
-        response_modalities=["TEXT", "IMAGE"]
-    )
-)
+for img_model in image_models_to_try:
+    try:
+        print(f"Attempting image generation using model: {img_model}")
+        result_img = client.models.generate_content(
+            model=img_model,
+            contents=image_prompt,
+            config=types.GenerateContentConfig(
+                response_modalities=["TEXT", "IMAGE"]
+            )
+        )
+        break
+    except Exception as e:
+        print(f"Image model {img_model} failed with error: {e}. Retrying...")
+        time.sleep(10)
+
+if not result_img:
+    raise Exception("All image generation models failed due to high demand or server errors.")
 
 image_path = "daily_pmp_tip.jpg"
 image_bytes = None
