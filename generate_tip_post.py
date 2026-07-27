@@ -10,24 +10,37 @@ from google.genai import types
 
 def make_bold(text):
     normal = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-    bold = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻\
-o𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝗅𝗭𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵"
+    bold = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝗅𝗭𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵"
     return text.translate(str.maketrans(normal, bold))
 
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
-# 1. Generate the Daily PMP Tip Text
+# 1. Generate the Daily PMP Tip Text with robust model fallbacks
 tip_prompt = (
     "Create a short, punchy, high-value daily PMP exam study tip optimized for social media. "
     "Focus on a core project management principle, formula, or agile/predictive mindset concept. "
     "Output only the tip content without any Markdown formatting or emojis."
 )
 
-response_text = client.models.generate_content(
-    model="gemini-3.5-flash",
-    contents=tip_prompt,
-)
-ai_tip_raw = response_text.text.strip()
+ai_tip_raw = None
+models_to_try = ["gemini-3.5-flash", "gemini-2.5-flash"]
+
+for model_name in models_to_try:
+    print(f"Attempting tip generation using model: {model_name}")
+    try:
+        response_text = client.models.generate_content(
+            model=model_name,
+            contents=tip_prompt,
+        )
+        ai_tip_raw = response_text.text.strip()
+        print(f"Successfully generated tip using {model_name}!")
+        break
+    except Exception as e:
+        print(f"Model {model_name} failed with error: {e}. Trying next...")
+        time.sleep(5)
+
+if not ai_tip_raw:
+    raise Exception("All models failed to generate tip content due to high demand.")
 
 header_tag = "💡DAILY PMP TIP💡\n\n"
 ai_tip_formatted = make_bold(ai_tip_raw)
@@ -100,8 +113,8 @@ wrapped_lines = textwrap.wrap(ai_tip_raw, width=char_limit)
 line_height = font_size + 12
 text_box_h = (len(wrapped_lines) * line_height) + 44
 
-# Positioned higher up from the bottom edge (leaving room below)
-text_box_y = height - text_box_h - int(height * 0.08)
+# Positioned slightly higher up from the bottom edge
+text_box_y = height - text_box_h - int(height * 0.09)
 text_box_x = margin
 
 # Draw semi-transparent dark background box with crisp borders
@@ -110,8 +123,8 @@ overlay_draw = ImageDraw.Draw(overlay)
 overlay_draw.rounded_rectangle(
     [text_box_x, text_box_y, text_box_x + text_box_w, text_box_y + text_box_h],
     radius=18,
-    fill=(15, 23, 42, 240), # Dark slate high-contrast backing
-    outline=(255, 255, 255, 160), # Bright outline
+    fill=(15, 23, 42, 240),
+    outline=(255, 255, 255, 160),
     width=3
 )
 img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
