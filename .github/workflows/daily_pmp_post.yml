@@ -1,48 +1,131 @@
-Run python -c '
-<string>:36: ExperimentalWarning: The generate_images method is deprecated and will be removed in the next major release (not before Jan. 1 2027). Please use the generate_content method with image models instead. See https://ai.google.dev/gemini-api/docs/deprecations#imagen-models and https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/capabilities/image-generation#generate-images
-Traceback (most recent call last):
-  File "<string>", line 36, in <module>
-  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/google/genai/_common.py", line 730, in wrapper
-    return func(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/google/genai/models.py", line 6925, in generate_images
-    api_response = self._generate_images(
-                   ^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/google/genai/models.py", line 5387, in _generate_images
-    response = self._api_client.request(
-               ^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/google/genai/_api_client.py", line 1700, in request
-    response = self._request(http_request, http_options, stream=False)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/google/genai/_api_client.py", line 1487, in _request
-    return self._retry(self._request_once, http_request, stream)  # type: ignore[no-any-return]
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/tenacity/__init__.py", line 470, in __call__
-    do = self.iter(retry_state=retry_state)
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/tenacity/__init__.py", line 371, in iter
-    result = action(retry_state)
-             ^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/tenacity/__init__.py", line 413, in exc_check
-    raise retry_exc.reraise()
-          ^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/tenacity/__init__.py", line 184, in reraise
-    raise self.last_attempt.result()
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/concurrent/futures/_base.py", line 449, in result
-    return self.__get_result()
-           ^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/concurrent/futures/_base.py", line 401, in __get_result
-    raise self._exception
-  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/tenacity/__init__.py", line 473, in __call__
-    result = fn(*args, **kwargs)
-             ^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/google/genai/_api_client.py", line 1464, in _request_once
-    errors.APIError.raise_for_response(response)
-  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/google/genai/errors.py", line 155, in raise_for_response
-    cls.raise_error(response.status_code, response_json, response)
-  File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/google/genai/errors.py", line 184, in raise_error
-    raise ClientError(status_code, response_json, response)
-google.genai.errors.ClientError: 404 NOT_FOUND. {'error': {'code': 404, 'message': 'models/imagen-3.0-generate-002 is not found for API version v1beta, or is not supported for predict. Call ModelService.ListModels to see the list of available models and their supported methods.', 'status': 'NOT_FOUND'}}
-Generating daily image...
-Error: Process completed with exit code 1.
+name: Daily PMP Tip and Image Post
+
+on:
+  schedule:
+    - cron: '0 16 * * *'  # Runs daily at 9:00 AM PDT (4:00 PM UTC)
+  workflow_dispatch:      # Allows manual trigger from GitHub
+
+jobs:
+  post-tip-to-facebook:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests google-genai pillow
+
+      - name: Run daily tip & image script
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
+          FACEBOOK_APP_ID: ${{ secrets.FACEBOOK_APP_ID }}
+          FACEBOOK_APP_SECRET: ${{ secrets.FACEBOOK_APP_SECRET }}
+        run: |
+          python -c '
+          import os
+          import time
+          import requests
+          from io import BytesIO
+          from PIL import Image
+          from google import genai
+          from google.genai import types
+
+          def make_bold(text):
+              normal = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+              bold = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵"
+              return text.translate(str.maketrans(normal, bold))
+
+          client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+
+          # 1. Generate the Daily PMP Tip Text
+          tip_prompt = (
+              "Create a short, punchy, high-value daily PMP exam study tip optimized for social media. "
+              "Focus on a core project management principle, formula, or agile/predictive mindset concept. "
+              "Structure it with a clear header reading DAILY PMP TIP followed by the tip content."
+          )
+          
+          response_text = client.models.generate_content(
+              model="gemini-3.5-flash",
+              contents=tip_prompt,
+          )
+          ai_tip = response_text.text
+
+          # 2. Generate a Unique Daily Professional Image using current Gemini Image Generation
+          image_prompt = (
+              "A professional, clean, modern corporate illustration representing project management success, "
+              "agile workflows, project boards, and leadership strategy. High quality, engaging visual, vibrant professional colors."
+          )
+          
+          print("Generating daily image...")
+          result_img = client.models.generate_content(
+              model="gemini-3.1-flash-image",
+              contents=image_prompt,
+              config=types.GenerateContentConfig(
+                  response_modalities=["TEXT", "IMAGE"]
+              )
+          )
+
+          image_path = "daily_pmp_tip.jpg"
+          image_saved = False
+          for part in result_img.candidates[0].content.parts:
+              if part.inline_data:
+                  image = Image.open(BytesIO(part.inline_data.data))
+                  image.save(image_path)
+                  image_saved = True
+                  break
+
+          if not image_saved:
+              raise Exception("Failed to generate and extract image bytes from Gemini response.")
+          print("Image successfully generated and saved!")
+
+          # 3. Format Social Media Post Text
+          header = "💡 " + make_bold("DAILY PMP TIP") + " 💡"
+          ai_tip = ai_tip.replace("DAILY PMP TIP", header)
+          ai_tip = ai_tip.replace("Daily Pmp Tip", header)
+          ai_tip = ai_tip.replace("daily pmp tip", header)
+
+          cta_block = (
+              "\n\n👇 " + make_bold("READY TO PASS YOUR PMP EXAM ON THE FIRST TRY?") + "\n" +
+              make_bold("Join 50,000 other students from 180 countries in top-rated training with Master of Project Academy:") + "\n" +
+              "https://masterofproject.com/"
+          )
+          post_text = ai_tip + cta_block
+
+          # 4. Exchange/Refresh Facebook Token
+          app_id = os.environ["FACEBOOK_APP_ID"]
+          app_secret = os.environ["FACEBOOK_APP_SECRET"]
+          current_token = os.environ["FACEBOOK_ACCESS_TOKEN"]
+
+          refresh_url = "https://graph.facebook.com/v18.0/oauth/access_token"
+          refresh_params = {
+              "grant_type": "fb_exchange_token",
+              "client_id": app_id,
+              "client_secret": app_secret,
+              "fb_exchange_token": current_token
+          }
+          refresh_res = requests.get(refresh_url, params=refresh_params).json()
+          active_token = refresh_res.get("access_token", current_token)
+
+          # 5. Post Photo + Caption to Facebook Page Feed
+          page_id = os.environ["FACEBOOK_PAGE_ID"]
+          post_url = f"https://graph.facebook.com/v18.0/{page_id}/photos"
+
+          with open(image_path, "rb") as img_file:
+              files = {"source": img_file}
+              payload = {
+                  "caption": post_text,
+                  "published": "true",
+                  "access_token": active_token
+              }
+              res = requests.post(post_url, data=payload, files=files)
+              print("Facebook Photo Post Response:", res.json())
+          '
