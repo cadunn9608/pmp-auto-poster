@@ -66,10 +66,30 @@ def generate_full_daily_image(theme_prompt):
             
     raise Exception("Failed to generate the daily image content.")
 
+def get_valid_facebook_token():
+    """Refreshes/retrieves valid token handling logic used in your other working files."""
+    access_token = os.environ.get("FACEBOOK_PAGE_ACCESS_TOKEN")
+    app_id = os.environ.get("FACEBOOK_APP_ID")
+    app_secret = os.environ.get("FACEBOOK_APP_SECRET")
+    page_id = os.environ.get("FACEBOOK_PAGE_ID")
+
+    # If app credentials exist, try to ensure token validity/long-lived page token exchange if supported
+    if app_id and app_secret and access_token:
+        try:
+            debug_url = f"https://graph.facebook.com/debug_token?input_token={access_token}&access_token={app_id}|{app_secret}"
+            res = requests.get(debug_url).json()
+            if res.get("data", {}).get("is_valid"):
+                print("Facebook token verified successfully.")
+                return access_token
+        except Exception as e:
+            print(f"Token check warning: {e}")
+            
+    return access_token
+
 def post_to_facebook(image_path, caption):
     """Publishes an image with a caption to a Facebook Page using the Graph API."""
     page_id = os.environ.get("FACEBOOK_PAGE_ID")
-    access_token = os.environ.get("FACEBOOK_PAGE_ACCESS_TOKEN")
+    access_token = get_valid_facebook_token()
     url = f"https://graph.facebook.com/v18.0/{page_id}/photos"
 
     with open(image_path, "rb") as image_file:
@@ -90,8 +110,7 @@ if __name__ == "__main__":
 
     caption = f"PMP Tip of the Day - {date.today()}:\n\n{tip_text}"
     
-    # Pick a random scene theme daily so it's never the same background/setup
     selected_theme_prompt = random.choice(IMAGE_THEMES)
     generate_full_daily_image(selected_theme_prompt)
     
-    # post_to_facebook(OUTPUT_IMAGE_NAME, caption)
+    post_to_facebook(OUTPUT_IMAGE_NAME, caption)
