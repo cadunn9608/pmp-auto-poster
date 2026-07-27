@@ -1,5 +1,6 @@
 import os
 import time
+import random
 import textwrap
 import requests
 from io import BytesIO
@@ -9,7 +10,8 @@ from google.genai import types
 
 def make_bold(text):
     normal = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-    bold = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵"
+    bold = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻\
+o𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝗅𝗭𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵"
     return text.translate(str.maketrans(normal, bold))
 
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
@@ -30,14 +32,33 @@ ai_tip_raw = response_text.text.strip()
 header_tag = "💡DAILY PMP TIP💡\n\n"
 ai_tip_formatted = make_bold(ai_tip_raw)
 
-# 2. Generate 3D Pixar-style animated image with cute animals (unique every day)
+# 2. Dynamic Randomization Pools for Unique Daily Backgrounds
+animals_pool = [
+    "a fluffy golden retriever puppy and a playful orange kitten",
+    "a joyful golden retriever puppy and a curious red panda",
+    "a golden retriever puppy and a clever baby elephant wearing tiny glasses",
+    "a cute golden retriever puppy and a friendly capybara",
+    "a cheerful golden retriever puppy and an energetic fox kit"
+]
+
+settings_pool = [
+    "a modern sunlit tech startup open-office with colorful beanbag chairs and whiteboards",
+    "a cozy rustic wooden treehouse study room surrounded by green forest canopy views",
+    "a futuristic sci-fi command center with glowing holographic project schedules",
+    "a bright beachside patio overlooking the ocean with tropical plants and sunny skies",
+    "a vintage artisan workshop filled with creative blueprints, tools, and warm lighting"
+]
+
+selected_animals = random.choice(animals_pool)
+selected_setting = random.choice(settings_pool)
+
 image_prompt = (
-    "A stunning 3D Pixar-style animated digital art illustration featuring an adorable, fluffy golden retriever puppy "
-    "and a cute koala wearing tiny glasses studying project management together at a cozy wooden desk. "
-    "Bright, vibrant cinematic lighting, charming details, colorful office background, high quality 3D render."
+    f"A stunning 3D Pixar-style animated digital art illustration featuring {selected_animals} "
+    f"collaborating and working on a project inside {selected_setting}. "
+    "Bright cinematic lighting, charming details, vibrant professional colors, high quality 3D render."
 )
 
-print("Generating daily Pixar-style branded image...")
+print(f"Generating random daily image: {selected_animals} in {selected_setting}...")
 result_img = client.models.generate_content(
     model="gemini-3.1-flash-image",
     contents=image_prompt,
@@ -56,13 +77,13 @@ for part in result_img.candidates[0].content.parts:
 if not image_bytes:
     raise Exception("Failed to generate and extract image bytes from Gemini response.")
 
-# 3. Overlay the PMP Tip Text cleanly on the Generated Image using Pillow (with larger box & font)
+# 3. Overlay with Larger Font and Positioned Slightly Higher Up
 print("Overlaying PMP tip on image...")
 img = Image.open(image_bytes).convert("RGB")
 width, height = img.size
 
-# Increased font size for better readability (~3.2% of total image height)
-font_size = max(18, int(height * 0.032))
+# Larger font size for maximum visual impact (~3.6% of height)
+font_size = max(20, int(height * 0.036))
 try:
     font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf", font_size)
 except IOError:
@@ -70,38 +91,39 @@ except IOError:
 
 draw = ImageDraw.Draw(img)
 
-# Wider margin and larger text container box
 margin = int(width * 0.04)
 text_box_w = width - (2 * margin)
 
-char_limit = int(text_box_w / (font_size * 0.50))
+char_limit = int(text_box_w / (font_size * 0.48))
 wrapped_lines = textwrap.wrap(ai_tip_raw, width=char_limit)
 
-line_height = font_size + 10
-text_box_h = (len(wrapped_lines) * line_height) + 40
-text_box_y = height - text_box_h - int(height * 0.05)
+line_height = font_size + 12
+text_box_h = (len(wrapped_lines) * line_height) + 44
+
+# Positioned higher up from the bottom edge (leaving room below)
+text_box_y = height - text_box_h - int(height * 0.08)
 text_box_x = margin
 
-# Draw a larger semi-transparent dark background box for high contrast and readability
+# Draw semi-transparent dark background box with crisp borders
 overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
 overlay_draw = ImageDraw.Draw(overlay)
 overlay_draw.rounded_rectangle(
     [text_box_x, text_box_y, text_box_x + text_box_w, text_box_y + text_box_h],
-    radius=16,
-    fill=(15, 23, 42, 235),
-    outline=(255, 255, 255, 140),
+    radius=18,
+    fill=(15, 23, 42, 240), # Dark slate high-contrast backing
+    outline=(255, 255, 255, 160), # Bright outline
     width=3
 )
 img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
 draw = ImageDraw.Draw(img)
 
-current_y = text_box_y + 20
+current_y = text_box_y + 22
 for line in wrapped_lines:
-    draw.text((text_box_x + 20, current_y), line, fill="white", font=font)
+    draw.text((text_box_x + 22, current_y), line, fill="white", font=font)
     current_y += line_height
 
 img.save(image_path)
-print("Larger branded text box successfully applied!")
+print("Updated higher position and larger font applied successfully!")
 
 # 4. Format Social Media Caption Text
 post_header = make_bold(header_tag)
