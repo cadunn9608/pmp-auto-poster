@@ -46,12 +46,19 @@ jobs:
           # Initialize Gemini client
           client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
 
+          # Prompt instructing Gemini to output exactly the expected tag structures
           prompt = (
               'Create an engaging, high-energy PMP exam practice post optimized for social media featuring EXACTLY FOUR (4) rigorous, situational multiple-choice questions in the precise style of the actual PMP exam.\n\n'
-              'Structure each question clearly with options (A, B, C, D), the correct answer, and a concise PMP mindset explanation. Use clean headings without any markdown asterisks or emojis in the text headings.'
+              'Structure the post using these exact plain text headings without markdown asterisks or emojis:\n'
+              'PMP PRACTICE QUESTION OF THE DAY\n'
+              '[Insert the 4 questions, options A, B, C, D here]\n\n'
+              'CORRECT ANSWER:\n'
+              '[Provide the correct answers for each]\n\n'
+              'THE PMP MINDSET BREAKDOWN:\n'
+              '[Provide concise mindset explanations]'
           )
 
-          # Fallback logic: Try gemini-3.5-flash first, and if it encounters server errors, fallback to gemini-1.5-pro
+          # Fallback logic: Try gemini-3.5-flash first, fallback to gemini-1.5-pro if 503 error occurs
           ai_text = None
           models_to_try = ['gemini-3.5-flash', 'gemini-1.5-pro']
 
@@ -76,8 +83,8 @@ jobs:
               raise Exception('All models failed to generate content due to high demand or server errors.')
 
           # Build the exact bold Unicode headers with single emojis cleanly
-          header1 = '🚨 ' + make_bold('PMP PRACTICE QUESTIONS OF THE DAY') + ' 🚨'
-          header2 = '✅ ' + make_bold('CORRECT ANSWERS:')
+          header1 = '🚨 ' + make_bold('PMP PRACTICE QUESTION OF THE DAY') + ' 🚨'
+          header2 = '✅ ' + make_bold('CORRECT ANSWER:')
           header3 = '🧠 ' + make_bold('THE PMP MINDSET BREAKDOWN:')
 
           cta_block = (
@@ -86,10 +93,10 @@ jobs:
               'https://masterofproject.com/'
           )
 
-          # Replace standard text occurrences to apply the bold formatting
-          post_text = ai_text.replace('PMP PRACTICE QUESTIONS OF THE DAY', header1)
-          post_text = post_text.replace('CORRECT ANSWER:', header2)
-          post_text = post_text.replace('THE PMP MINDSET BREAKDOWN:', header3)
+          # Replace plain text headers with our bolded Unicode versions
+          post_text = ai_text.replace('PMP PRACTICE QUESTION OF THE DAY', header1)
+          post_text = ai_text.replace('CORRECT ANSWER:', header2)
+          post_text = ai_text.replace('THE PMP MINDSET BREAKDOWN:', header3)
 
           # Append the fully bolded CTA block securely to the end
           post_text = post_text + cta_block
