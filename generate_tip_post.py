@@ -104,12 +104,13 @@ for part in result_img.candidates[0].content.parts:
 if not image_bytes:
     raise Exception("Failed to generate and extract image bytes from Gemini response.")
 
-# 3. Overlay with Larger Font and Positioned Slightly Higher Up
+# 3. Overlay with Significantly Larger Font & Adjusted Box Spacing
 print("Overlaying PMP tip on image...")
 img = Image.open(image_bytes).convert("RGB")
 width, height = img.size
 
-font_size = max(20, int(height * 0.036))
+# Substantially increased font size (~4.5% of total height)
+font_size = max(26, int(height * 0.045))
 try:
     font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf", font_size)
 except IOError:
@@ -120,33 +121,34 @@ draw = ImageDraw.Draw(img)
 margin = int(width * 0.04)
 text_box_w = width - (2 * margin)
 
-char_limit = int(text_box_w / (font_size * 0.48))
+# Adjusted character limit for the larger font size
+char_limit = int(text_box_w / (font_size * 0.45))
 wrapped_lines = textwrap.wrap(ai_tip_raw, width=char_limit)
 
-line_height = font_size + 12
-text_box_h = (len(wrapped_lines) * line_height) + 44
-text_box_y = height - text_box_h - int(height * 0.09)
+line_height = font_size + 14
+text_box_h = (len(wrapped_lines) * line_height) + 50
+text_box_y = height - text_box_h - int(height * 0.08)
 text_box_x = margin
 
 overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
 overlay_draw = ImageDraw.Draw(overlay)
 overlay_draw.rounded_rectangle(
     [text_box_x, text_box_y, text_box_x + text_box_w, text_box_y + text_box_h],
-    radius=18,
-    fill=(15, 23, 42, 240),
-    outline=(255, 255, 255, 160),
-    width=3
+    radius=20,
+    fill=(15, 23, 42, 245),
+    outline=(255, 255, 255, 180),
+    width=4
 )
 img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
 draw = ImageDraw.Draw(img)
 
-current_y = text_box_y + 22
+current_y = text_box_y + 25
 for line in wrapped_lines:
-    draw.text((text_box_x + 22, current_y), line, fill="white", font=font)
+    draw.text((text_box_x + 25, current_y), line, fill="white", font=font)
     current_y += line_height
 
 img.save(image_path)
-print("Updated higher position and larger font applied successfully!")
+print("Larger font and updated text box applied successfully!")
 
 # 4. Format Social Media Caption Text
 post_header = make_bold(header_tag)
