@@ -22,121 +22,112 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests google-genai
 
-      - name: Run daily Facebook post script
+      - name: Run daily post script
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
-          FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
+          FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
           FACEBOOK_APP_ID: ${{ secrets.FACEBOOK_APP_ID }}
           FACEBOOK_APP_SECRET: ${{ secrets.FACEBOOK_APP_SECRET }}
         run: |
-          python -c "
+          python -c '
           import os
           import time
           import requests
           from google import genai
 
-          # Helper function to convert regular text to Unicode bold characters for Facebook
           def make_bold(text):
-              normal = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-              bold = '𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵'
+              normal = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+              bold = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵"
               return text.translate(str.maketrans(normal, bold))
 
-          # Initialize Gemini client
-          client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
+          client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
-          # Prompt instructing Gemini to output exact tags with exact casing for 1 question
           prompt = (
-              'Create an engaging, high-energy PMP exam practice post optimized for social media featuring EXACTLY ONE (1) rigorous, situational multiple-choice question in the precise style of the actual PMP exam.\n\n'
-              'Structure the post using these exact plain text headings without markdown asterisks or emojis:\n'
-              'PMP PRACTICE QUESTION OF THE DAY\n'
-              '[Insert the single question and options A, B, C, D here]\n\n'
-              'CORRECT ANSWER:\n'
-              '[Provide the correct option and letter]\n\n'
-              'THE PMP MINDSET BREAKDOWN:\n'
-              '[Provide the concise mindset explanation]'
+              "Create an engaging, high-energy PMP exam practice post optimized for social media featuring EXACTLY ONE (1) rigorous, situational multiple-choice question in the precise style of the actual PMP exam.\n\n"
+              "Structure the post using these exact plain text headings without markdown asterisks or emojis:\n"
+              "PMP PRACTICE QUESTION OF THE DAY\n"
+              "[Insert the single question and options A, B, C, D here]\n\n"
+              "CORRECT ANSWER:\n"
+              "[Provide the correct option and letter]\n\n"
+              "THE PMP MINDSET BREAKDOWN:\n"
+              "[Provide the concise mindset explanation]"
           )
 
-          # Stable model fallback list using valid current identifiers
           ai_text = None
-          models_to_try = ['gemini-3.5-flash', 'gemini-3.1-flash']
+          models_to_try = ["gemini-3.5-flash", "gemini-2.5-flash"]
 
           for model_name in models_to_try:
-              print(f'Attempting content generation using model: {model_name}')
+              print(f"Attempting content generation using model: {model_name}")
               try:
                   response = client.models.generate_content(
                       model=model_name,
                       contents=prompt,
                   )
                   ai_text = response.text
-                  print(f'Successfully generated content using {model_name}!')
+                  print(f"Successfully generated content using {model_name}!")
                   break
               except Exception as e:
-                  print(f'Model {model_name} failed with error: {e}. Trying next model...')
+                  print(f"Model {model_name} failed with error: {e}. Trying next model...")
                   time.sleep(5)
 
           if not ai_text:
-              raise Exception('All models failed to generate content due to high demand or server errors.')
+              raise Exception("All models failed to generate content due to high demand or server errors.")
 
-          # Build the exact bold Unicode headers with single emojis cleanly
-          header1 = '🚨 ' + make_bold('PMP PRACTICE QUESTION OF THE DAY') + ' 🚨'
-          header2 = '✅ ' + make_bold('CORRECT ANSWER:')
-          header3 = '🧠 ' + make_bold('THE PMP MINDSET BREAKDOWN:')
+          header1 = "🚨 " + make_bold("PMP PRACTICE QUESTION OF THE DAY") + " 🚨"
+          header2 = "✅ " + make_bold("CORRECT ANSWER:")
+          header3 = "🧠 " + make_bold("THE PMP MINDSET BREAKDOWN:")
 
           cta_block = (
-              '\n\n👇 ' + make_bold('READY TO PASS YOUR PMP EXAM ON THE FIRST TRY?') + '\n' +
-              make_bold('Join 50,000 other students from 180 countries in top-rated training with Master of Project Academy:') + '\n' +
-              'https://masterofproject.com/'
+              "\n\n👇 " + make_bold("READY TO PASS YOUR PMP EXAM ON THE FIRST TRY?") + "\n" +
+              make_bold("Join 50,000 other students from 180 countries in top-rated training with Master of Project Academy:") + "\n" +
+              "https://masterofproject.com/"
           )
 
-          # Replace all potential casing variations to guarantee formatting hits
-          ai_text = ai_text.replace('PMP PRACTICE QUESTION OF THE DAY', header1)
-          ai_text = ai_text.replace('Pmp Practice Question Of The Day', header1)
-          ai_text = ai_text.replace('pmp practice question of the day', header1)
+          ai_text = ai_text.replace("PMP PRACTICE QUESTION OF THE DAY", header1)
+          ai_text = ai_text.replace("Pmp Practice Question Of The Day", header1)
+          ai_text = ai_text.replace("pmp practice question of the day", header1)
 
-          ai_text = ai_text.replace('CORRECT ANSWER:', header2)
-          ai_text = ai_text.replace('Correct Answer:', header2)
-          ai_text = ai_text.replace('correct answer:', header2)
+          ai_text = ai_text.replace("CORRECT ANSWER:", header2)
+          ai_text = ai_text.replace("Correct Answer:", header2)
+          ai_text = ai_text.replace("correct answer:", header2)
 
-          ai_text = ai_text.replace('THE PMP MINDSET BREAKDOWN:', header3)
-          ai_text = ai_text.replace('The Pmp Mindset Breakdown:', header3)
-          ai_text = ai_text.replace('the pmp mindset breakdown:', header3)
+          ai_text = ai_text.replace("THE PMP MINDSET BREAKDOWN:", header3)
+          ai_text = ai_text.replace("The Pmp Mindset Breakdown:", header3)
+          ai_text = ai_text.replace("the pmp mindset breakdown:", header3)
 
-          # Append the fully bolded CTA block securely to the end
           post_text = ai_text + cta_block
 
-          # Automatically exchange/refresh the Facebook token dynamically
-          app_id = os.environ['FACEBOOK_APP_ID']
-          app_secret = os.environ['FACEBOOK_APP_SECRET']
-          current_token = os.environ['FACEBOOK_ACCESS_TOKEN']
+          app_id = os.environ["FACEBOOK_APP_ID"]
+          app_secret = os.environ["FACEBOOK_APP_SECRET"]
+          current_token = os.environ["FACEBOOK_ACCESS_TOKEN"]
 
-          refresh_url = 'https://graph.facebook.com/v18.0/oauth/access_token'
+          refresh_url = "https://graph.facebook.com/v18.0/oauth/access_token"
           refresh_params = {
-              'grant_type': 'fb_exchange_token',
-              'client_id': app_id,
-              'client_secret': app_secret,
-              'fb_exchange_token': current_token
+              "grant_type": "fb_exchange_token",
+              "client_id": app_id,
+              "client_secret": app_secret,
+              "fb_exchange_token": current_token
           }
 
           refresh_res = requests.get(refresh_url, params=refresh_params).json()
 
-          if 'access_token' in refresh_res:
-              active_token = refresh_res['access_token']
-              print('Successfully refreshed token dynamically!')
+          if "access_token" in refresh_res:
+              active_token = refresh_res["access_token"]
+              print("Successfully refreshed token dynamically!")
           else:
               active_token = current_token
-              print('Using existing token fallback.')
+              print("Using existing token fallback.")
 
-          # Post to Facebook Page Feed
-          page_id = os.environ['FACEBOOK_PAGE_ID']
-          post_url = f'https://graph.facebook.com/v18.0/{page_id}/feed'
+          page_id = os.environ["FACEBOOK_PAGE_ID"]
+          post_url = f"https://graph.facebook.com/v18.0/{page_id}/feed"
 
           payload = {
-              'message': post_text,
-              'published': 'true',
-              'access_token': active_token
+              "message": post_text,
+              "published": "true",
+              "access_token": active_token
           }
 
           res = requests.post(post_url, data=payload)
-          print('Facebook Response:', res.json())
-          "
+          print("Facebook Response:", res.json())
+          '
