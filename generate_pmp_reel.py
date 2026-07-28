@@ -4,9 +4,8 @@ import time
 import requests
 from google import genai
 
-# MoviePy v2.0+ updated imports
-from moviepy.video.io.VideoFileClip import VideoFileClip
-from moviepy.video.VideoClip import TextClip, CompositeVideoClip
+# MoviePy v2.0+ top-level imports
+from moviepy import VideoFileClip, TextClip, CompositeVideoClip
 
 # ==============================================================================
 # CONFIGURATION & ENVIRONMENT VARIABLES
