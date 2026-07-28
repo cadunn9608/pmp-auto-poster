@@ -2,7 +2,7 @@ name: Daily PMP Tip and Branded Image Post
 
 on:
   schedule:
-    - cron: '0 16 * * *'  # Runs daily at 9:00 AM PDT (4:00 PM UTC)
+    - cron: '45 16 * * *'  # Runs daily at 9:00 AM PDT (4:00 PM UTC)
   workflow_dispatch:      # Allows manual trigger from GitHub
 
 jobs:
