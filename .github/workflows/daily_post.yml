@@ -2,7 +2,7 @@ name: Daily PMP Post
 
 on:
   schedule:
-    - cron: '0 15 * * *'  # Runs daily at 8:00 AM PDT (3:00 PM UTC)
+    - cron: '45 16 * * *'  # Runs daily at 8:00 AM PDT (3:00 PM UTC)
   workflow_dispatch:      # Allows manual trigger from GitHub
 
 jobs:
