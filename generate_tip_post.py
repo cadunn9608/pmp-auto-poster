@@ -23,7 +23,13 @@ tip_prompt = (
 )
 
 ai_tip_raw = None
-text_models_to_try = ["gemini-3.5-flash-image", "gemini-3.5-flash"]
+text_models_to_try = [
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-001",
+    "gemini-2.5-flash-lite",
+    "gemini-2.0-flash-lite"
+]
 
 for model_name in text_models_to_try:
     print(f"Attempting tip generation using model: {model_name}")
@@ -73,7 +79,13 @@ image_prompt = (
 
 # Image generation with built-in retry/fallback handling for 503 errors
 result_img = None
-image_models_to_try = ["gemini-3.1-flash-image", "gemini-3.5-flash"]
+image_models_to_try = [
+    "gemini-2.5-flash-image",
+    "gemini-3.1-flash-image",
+    "gemini-3.1-flash-lite-image",
+    "gemini-3-pro-image",
+    "gemini-3.5-flash"
+]
 
 print(f"Generating random daily image: {selected_animals} in {selected_setting}...")
 for img_model in image_models_to_try:
