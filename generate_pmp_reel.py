@@ -163,9 +163,8 @@ for line in wrapped_lines:
 img.save(image_path)
 print("Image and text overlay successfully created!")
 
-# 4. Generate Voiceover Audio (Sanitized for gTTS) & Assemble 90-Second Video Reel
+# 4. Generate Voiceover Audio & Assemble 90-Second Video Reel
 print("Generating audio voiceover...")
-# Clean raw newlines so gTTS API doesn't throw a 200/Unknown payload error
 clean_spoken_text = pmp_content_raw.replace("\n", " ").replace("*", "").strip()
 audio_text = (
     "Here is your daily PMP exam question. "
@@ -223,35 +222,17 @@ refresh_params = {
 refresh_res = requests.get(refresh_url, params=refresh_params).json()
 active_token = refresh_res.get("access_token", current_token)
 
-# 7. Post the Video Reel to Facebook Page
+# 7. Post the Video Reel Directly to Facebook Page (Single-Step Method)
 page_id = os.environ["FACEBOOK_PAGE_ID"]
-
-print("Initializing Facebook Reels upload container...")
-init_url = f"https://graph.facebook.com/v18.0/{page_id}/videos"
-init_payload = {
-    "upload_phase": "start",
-    "access_token": active_token
-}
-init_res = requests.post(init_url, data=init_payload).json()
-video_id = init_res.get("video_id")
-upload_url = init_res.get("upload_url")
-
-if not upload_url:
-    raise Exception(f"Failed to initialize Facebook video upload container: {init_res}")
-
-print("Uploading video file chunks to Facebook...")
-with open(output_video_path, "rb") as video_file:
-    headers = {"Authorization": f"OAuth {active_token}"}
-    upload_res = requests.post(upload_url, data=video_file, headers=headers)
-    print("Upload response:", upload_res.json())
+post_url = f"https://graph-video.facebook.com/v18.0/{page_id}/videos"
 
 print("Publishing video container as a Reel...")
-publish_payload = {
-    "video_id": video_id,
-    "upload_phase": "finish",
-    "media_type": "REELS",
-    "description": post_text,
-    "access_token": active_token
-}
-final_res = requests.post(init_url, data=publish_payload)
-print("Facebook Reels Publish Response:", final_res.json())
+with open(output_video_path, "rb") as video_file:
+    files = {"source": video_file}
+    payload = {
+        "media_type": "REELS",
+        "description": post_text,
+        "access_token": active_token
+    }
+    res = requests.post(post_url, data=payload, files=files)
+    print("Facebook Reels Publish Response:", res.json())
