@@ -7,7 +7,7 @@ from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 from google import genai
 from google.genai import types
-from moviepy.editor import ImageClip, AudioFileClip
+from moviepy import ImageClip, AudioFileClip
 from gTTS import gTTS
 
 def make_bold(text):
@@ -163,7 +163,7 @@ for line in wrapped_lines:
 img.save(image_path)
 print("Image and text overlay successfully created!")
 
-# 4. Generate Voiceover Audio & Assemble 90-Second Video Reel
+# 4. Generate Voiceover Audio & Assemble 90-Second Video Reel (MoviePy v2+ Syntax)
 print("Generating audio voiceover...")
 audio_text = (
     "Here is your daily PMP exam question. "
@@ -179,12 +179,12 @@ print("Building vertical video reel with MoviePy...")
 audio_clip = AudioFileClip(audio_path)
 video_duration = max(90.0, audio_clip.duration)
 
-image_clip = ImageClip(image_path).set_duration(video_duration)
-video_clip = image_clip.set_audio(audio_clip)
+image_clip = ImageClip(image_path).with_duration(video_duration)
+video_clip = image_clip.with_audio(audio_clip)
 
-video_clip = video_clip.resize(height=1920)
+video_clip = video_clip.resized(height=1920)
 if video_clip.w > 1080:
-    video_clip = video_clip.crop(x_center=video_clip.w/2, width=1080)
+    video_clip = video_clip.cropped(x_center=video_clip.w/2, width=1080)
 
 output_video_path = "daily_pmp_reel.mp4"
 video_clip.write_videofile(
