@@ -1,0 +1,36 @@
+name: Check Available Models
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-models:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Install Google GenAI SDK
+        run: pip install google-genai pillow requests
+
+      - name: Run Model Inspector
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python -c '
+          import os
+          from google import genai
+          client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+          print("Listing all models available to your API key:\n")
+          try:
+              for model in client.models.list():
+                  methods = getattr(model, "supported_generation_methods", [])
+                  print(f"• Name: {model.name}")
+                  if methods:
+                      print(f"  Supported Methods: {methods}")
+                  print("-" * 40)
+          except Exception as e:
+              print(f"Error fetching models: {e}")
+          '
