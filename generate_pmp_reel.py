@@ -8,7 +8,7 @@ from PIL import Image, ImageDraw, ImageFont
 from google import genai
 from google.genai import types
 from moviepy import ImageClip, AudioFileClip
-from gTTS import gTTS
+from gtts import gTTS
 
 def make_bold(text):
     normal = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
