@@ -23,7 +23,7 @@ tip_prompt = (
 )
 
 ai_tip_raw = None
-text_models_to_try = ["gemini-3.5-flash", "gemini-3.1-flash"]
+text_models_to_try = ["gemini-3.5-flash-image", "gemini-3.5-flash"]
 
 for model_name in text_models_to_try:
     print(f"Attempting tip generation using model: {model_name}")
