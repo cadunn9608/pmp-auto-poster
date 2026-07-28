@@ -163,14 +163,17 @@ for line in wrapped_lines:
 img.save(image_path)
 print("Image and text overlay successfully created!")
 
-# 4. Generate Voiceover Audio & Assemble 90-Second Video Reel (MoviePy v2+ Syntax)
+# 4. Generate Voiceover Audio (Sanitized for gTTS) & Assemble 90-Second Video Reel
 print("Generating audio voiceover...")
+# Clean raw newlines so gTTS API doesn't throw a 200/Unknown payload error
+clean_spoken_text = pmp_content_raw.replace("\n", " ").replace("*", "").strip()
 audio_text = (
     "Here is your daily PMP exam question. "
-    f"{pmp_content_raw} "
+    f"{clean_spoken_text} "
     "Pause for a moment to think about your answer. "
     "Now let's review the correct answer and explanation."
 )
+
 tts = gTTS(text=audio_text, lang='en', slow=False)
 audio_path = "temp_voiceover.mp3"
 tts.save(audio_path)
