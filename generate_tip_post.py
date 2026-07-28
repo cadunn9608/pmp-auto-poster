@@ -24,11 +24,11 @@ tip_prompt = (
 
 ai_tip_raw = None
 text_models_to_try = [
-    "gemini-2.5-flash",
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-001",
-    "gemini-2.5-flash-lite",
-    "gemini-2.0-flash-lite"
+    "gemini-3.5-flash",
+    "gemini-3.1-flash",
+    "gemini-3.6-flash",
+    "gemini-3-flash-preview",
+    "gemini-3.1-flash-lite"
 ]
 
 for model_name in text_models_to_try:
@@ -80,10 +80,10 @@ image_prompt = (
 # Image generation with built-in retry/fallback handling for 503 errors
 result_img = None
 image_models_to_try = [
-    "gemini-2.5-flash-image",
     "gemini-3.1-flash-image",
-    "gemini-3.1-flash-lite-image",
     "gemini-3-pro-image",
+    "gemini-3.1-flash-lite-image",
+    "gemini-2.5-flash-image",
     "gemini-3.5-flash"
 ]
 
