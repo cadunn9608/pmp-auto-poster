@@ -15,7 +15,7 @@ def make_bold(text):
 
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
-# 1. Generate the PMP Reel Script/Text with robust fallback list
+# 1. Generate the PMP Reel Script/Text
 reel_prompt = (
     "Create a short, engaging script for a daily PMP exam study tip video reel. "
     "Keep it punchy, focused on a core project management principle or mindset concept, "
@@ -32,23 +32,18 @@ text_models_to_try = [
 ]
 
 for model_name in text_models_to_try:
-    print(f"Attempting reel generation using model: {model_name}")
     try:
         response_text = client.models.generate_content(
             model=model_name,
             contents=reel_prompt,
         )
         ai_reel_raw = response_text.text.strip()
-        print(f"Successfully generated reel text using {model_name}!")
         break
-    except Exception as e:
-        print(f"Model {model_name} failed with error: {e}. Trying next...")
-        time.sleep(5)
+    except Exception:
+        time.sleep(2)
 
 if not ai_reel_raw:
-    raise Exception("All models failed to generate reel content due to high demand.")
-
-print("Reel text ready:", ai_reel_raw[:100], "...")
+    raise Exception("Failed to generate reel content.")
 
 # 2. Generate Background Image for the Reel
 image_prompt = (
@@ -73,9 +68,8 @@ for img_model in image_models_to_try:
             config=types.GenerateContentConfig(response_modalities=["TEXT", "IMAGE"])
         )
         break
-    except Exception as e:
-        print(f"Image model {img_model} failed: {e}. Retrying...")
-        time.sleep(5)
+    except Exception:
+        time.sleep(2)
 
 image_bytes = None
 if result_img:
@@ -92,14 +86,12 @@ else:
     img = Image.new("RGB", (1080, 1920), color=(15, 23, 42))
     img.save(bg_image_path)
 
-# 3. Compile Image into Video using MoviePy (v1.x compatible import)
-print("Compiling video reel using MoviePy...")
+# 3. Compile Image into Video using original MoviePy import
 from moviepy.editor import ImageClip
 
 video_filename = "daily_pmp_reel.mp4"
 clip = ImageClip(bg_image_path).set_duration(10)
 clip.write_videofile(video_filename, fps=24, codec="libx264", audio=False)
-print(f"Successfully generated {video_filename}!")
 
 # 4. Format Caption Text
 header_tag = "💡DAILY PMP REEL TIP💡\n\n"
