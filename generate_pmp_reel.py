@@ -10,7 +10,7 @@ from google.genai import types
 
 def make_bold(text):
     normal = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-    bold = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝗳𝟴𝟵"
+    bold = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵"
     return text.translate(str.maketrans(normal, bold))
 
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
@@ -50,5 +50,44 @@ if not ai_reel_raw:
 
 print("Reel text ready:", ai_reel_raw[:100], "...")
 
-# Note: Add your video generation or ffmpeg processing steps below if your script compiles a video.
-# (If your script expects environment variables for posting, ensure FACEBOOK_APP_ID, etc., are configured in GitHub Actions secrets.)
+# Format Caption Text
+header_tag = "💡DAILY PMP REEL TIP💡\n\n"
+ai_reel_formatted = make_bold(ai_reel_raw)
+cta_block = (
+    "\n\n👇 " + make_bold("READY TO PASS YOUR PMP EXAM ON THE FIRST TRY?") + "\n" +
+    make_bold("Join 50,000 other students from 180 countries in top-rated training with Master of Project Academy:") + "\n" +
+    "https://masterofproject.com/"
+)
+post_text = header_tag + ai_reel_formatted + cta_block
+
+# 2. Exchange/Refresh Facebook Token using complete credentials
+app_id = os.environ["FACEBOOK_APP_ID"]
+app_secret = os.environ["FACEBOOK_APP_SECRET"]
+current_token = os.environ["FACEBOOK_ACCESS_TOKEN"]
+page_id = os.environ["FACEBOOK_PAGE_ID"]
+
+refresh_url = "https://graph.facebook.com/v18.0/oauth/access_token"
+refresh_params = {
+    "grant_type": "fb_exchange_token",
+    "client_id": app_id,
+    "client_secret": app_secret,
+    "fb_exchange_token": current_token
+}
+refresh_res = requests.get(refresh_url, params=refresh_params).json()
+active_token = refresh_res.get("access_token", current_token)
+
+# 3. Post the Reel/Video to Facebook Page
+post_url = f"https://graph.facebook.com/v18.0/{page_id}/videos"
+
+video_filename = "daily_pmp_reel.mp4"
+if not os.path.exists(video_filename):
+    raise Exception(f"Error: {video_filename} was not found for upload.")
+
+with open(video_filename, "rb") as video_file:
+    files = {"source": video_file}
+    payload = {
+        "description": post_text,
+        "access_token": active_token
+    }
+    res = requests.post(post_url, data=payload, files=files)
+    print("Facebook Reel Post Response:", res.json())
