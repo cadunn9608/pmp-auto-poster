@@ -89,16 +89,14 @@ if image_bytes:
     img = Image.open(image_bytes).convert("RGB")
     img.save(bg_image_path)
 else:
-    # Fallback solid color image if generation fails
     img = Image.new("RGB", (1080, 1920), color=(15, 23, 42))
     img.save(bg_image_path)
 
-# 3. Compile Image into Video using MoviePy (Generates daily_pmp_reel.mp4)
+# 3. Compile Image into Video using MoviePy (v1.x compatible import)
 print("Compiling video reel using MoviePy...")
 from moviepy.editor import ImageClip
 
 video_filename = "daily_pmp_reel.mp4"
-# Create a 10-second video clip from the background image (adjust duration as needed)
 clip = ImageClip(bg_image_path).set_duration(10)
 clip.write_videofile(video_filename, fps=24, codec="libx264", audio=False)
 print(f"Successfully generated {video_filename}!")
