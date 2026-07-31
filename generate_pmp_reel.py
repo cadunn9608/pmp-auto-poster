@@ -50,7 +50,60 @@ if not ai_reel_raw:
 
 print("Reel text ready:", ai_reel_raw[:100], "...")
 
-# Format Caption Text
+# 2. Generate Background Image for the Reel
+image_prompt = (
+    "A vibrant 3D Pixar-style animated background of a cute golden retriever puppy "
+    "studying project management charts in a sunny modern workspace. High quality render."
+)
+
+result_img = None
+image_models_to_try = [
+    "gemini-3.1-flash-image",
+    "gemini-3-pro-image",
+    "gemini-3.1-flash-lite-image",
+    "gemini-2.5-flash-image",
+    "gemini-3.5-flash"
+]
+
+for img_model in image_models_to_try:
+    try:
+        result_img = client.models.generate_content(
+            model=img_model,
+            contents=image_prompt,
+            config=types.GenerateContentConfig(response_modalities=["TEXT", "IMAGE"])
+        )
+        break
+    except Exception as e:
+        print(f"Image model {img_model} failed: {e}. Retrying...")
+        time.sleep(5)
+
+image_bytes = None
+if result_img:
+    for part in result_img.candidates[0].content.parts:
+        if part.inline_data:
+            image_bytes = BytesIO(part.inline_data.data)
+            break
+
+bg_image_path = "reel_bg.jpg"
+if image_bytes:
+    img = Image.open(image_bytes).convert("RGB")
+    img.save(bg_image_path)
+else:
+    # Fallback solid color image if generation fails
+    img = Image.new("RGB", (1080, 1920), color=(15, 23, 42))
+    img.save(bg_image_path)
+
+# 3. Compile Image into Video using MoviePy (Generates daily_pmp_reel.mp4)
+print("Compiling video reel using MoviePy...")
+from moviepy.editor import ImageClip
+
+video_filename = "daily_pmp_reel.mp4"
+# Create a 10-second video clip from the background image (adjust duration as needed)
+clip = ImageClip(bg_image_path).set_duration(10)
+clip.write_videofile(video_filename, fps=24, codec="libx264", audio=False)
+print(f"Successfully generated {video_filename}!")
+
+# 4. Format Caption Text
 header_tag = "💡DAILY PMP REEL TIP💡\n\n"
 ai_reel_formatted = make_bold(ai_reel_raw)
 cta_block = (
@@ -60,12 +113,7 @@ cta_block = (
 )
 post_text = header_tag + ai_reel_formatted + cta_block
 
-# 2. Ensure the video file exists (Insert your video generation / moviepy / ffmpeg code here if needed)
-video_filename = "daily_pmp_reel.mp4"
-if not os.path.exists(video_filename):
-    raise Exception(f"Error: {video_filename} was not generated successfully prior to upload.")
-
-# 3. Exchange/Refresh Facebook Token using complete credentials
+# 5. Exchange/Refresh Facebook Token using complete credentials
 app_id = os.environ["FACEBOOK_APP_ID"]
 app_secret = os.environ["FACEBOOK_APP_SECRET"]
 current_token = os.environ["FACEBOOK_ACCESS_TOKEN"]
@@ -81,7 +129,7 @@ refresh_params = {
 refresh_res = requests.get(refresh_url, params=refresh_params).json()
 active_token = refresh_res.get("access_token", current_token)
 
-# 4. Post the Reel/Video to Facebook Page
+# 6. Post the Reel/Video to Facebook Page
 post_url = f"https://graph.facebook.com/v18.0/{page_id}/videos"
 
 with open(video_filename, "rb") as video_file:
