@@ -60,7 +60,12 @@ cta_block = (
 )
 post_text = header_tag + ai_reel_formatted + cta_block
 
-# 2. Exchange/Refresh Facebook Token using complete credentials
+# 2. Ensure the video file exists (Insert your video generation / moviepy / ffmpeg code here if needed)
+video_filename = "daily_pmp_reel.mp4"
+if not os.path.exists(video_filename):
+    raise Exception(f"Error: {video_filename} was not generated successfully prior to upload.")
+
+# 3. Exchange/Refresh Facebook Token using complete credentials
 app_id = os.environ["FACEBOOK_APP_ID"]
 app_secret = os.environ["FACEBOOK_APP_SECRET"]
 current_token = os.environ["FACEBOOK_ACCESS_TOKEN"]
@@ -76,12 +81,8 @@ refresh_params = {
 refresh_res = requests.get(refresh_url, params=refresh_params).json()
 active_token = refresh_res.get("access_token", current_token)
 
-# 3. Post the Reel/Video to Facebook Page
+# 4. Post the Reel/Video to Facebook Page
 post_url = f"https://graph.facebook.com/v18.0/{page_id}/videos"
-
-video_filename = "daily_pmp_reel.mp4"
-if not os.path.exists(video_filename):
-    raise Exception(f"Error: {video_filename} was not found for upload.")
 
 with open(video_filename, "rb") as video_file:
     files = {"source": video_file}
