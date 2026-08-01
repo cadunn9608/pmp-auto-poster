@@ -28,7 +28,7 @@ jobs:
       - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install google-genai moviepy==1.0.3 requests pillow
+          pip install google-genai moviepy==1.0.3 requests pillow gtts
 
       - name: Run Daily PMP Reel Script
         env:
