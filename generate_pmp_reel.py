@@ -1,127 +1,150 @@
 import os
 import time
-import random
-import textwrap
 import requests
 from io import BytesIO
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 from gtts import gTTS
-from moviepy.editor import ImageClip, AudioFileClip, TextClip, CompositeVideoClip
+from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips, CompositeVideoClip, TextClip
 from google import genai
 from google.genai import types
 
 def make_bold(text):
     normal = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-    bold = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵"
+    bold = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝑗𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵"
     return text.translate(str.maketrans(normal, bold))
 
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
-# 1. Generate the PMP Reel Script/Text
-reel_prompt = (
-    "Create a short, engaging script for a daily PMP exam study tip video reel. "
-    "Keep it punchy, focused on a core project management principle or mindset concept, "
-    "and optimize it for a social media video voiceover. Do not include markdown headers or brackets."
+# 1. Generate Multi-Scene Script from Gemini
+script_prompt = (
+    "Create a 90-second multi-scene script for a daily PMP exam study tip video reel. "
+    "Break it down into 3 distinct scenes: "
+    "Scene 1: Introduction with Andrew the golden retriever puppy introducing a tricky PMP scenario. "
+    "Scene 2: The core project management principle or mindset breakdown with a supporting character. "
+    "Scene 3: The takeaway and call to action. "
+    "Return the output as plain text with clear scene markers like [SCENE 1], [SCENE 2], [SCENE 3]."
 )
 
-ai_reel_raw = None
+ai_script_raw = None
 text_models_to_try = [
+    "gemini-2.0-flash",
     "gemini-3.5-flash",
     "gemini-3.1-flash",
-    "gemini-3.6-flash",
-    "gemini-3-flash-preview",
-    "gemini-3.1-flash-lite"
+    "gemini-3.6-flash"
 ]
 
 for model_name in text_models_to_try:
     try:
         response_text = client.models.generate_content(
             model=model_name,
-            contents=reel_prompt,
+            contents=script_prompt,
         )
-        ai_reel_raw = response_text.text.strip()
+        ai_script_raw = response_text.text.strip()
         break
     except Exception:
         time.sleep(2)
 
-if not ai_reel_raw:
-    raise Exception("Failed to generate reel content.")
+if not ai_script_raw:
+    raise Exception("Failed to generate multi-scene script.")
 
-# 2. Generate Background Image for the Reel
-image_prompt = (
-    "A vibrant 3D Pixar-style animated background of a cute golden retriever puppy "
-    "studying project management charts in a sunny modern workspace. High quality render."
-)
+print("Multi-scene script generated successfully!")
 
-result_img = None
-image_models_to_try = [
-    "gemini-3.1-flash-image",
-    "gemini-3-pro-image",
-    "gemini-3.1-flash-lite-image",
-    "gemini-2.5-flash-image",
-    "gemini-3.5-flash"
+# 2. Split script into scenes and generate corresponding 3D Pixar-style visuals
+scene_visual_prompts = [
+    (
+        "A vibrant 3D Pixar-style vertical 9:16 portrait of Andrew the golden retriever puppy "
+        "sitting at a modern desk in a sunny office setting, looking charismatic and welcoming."
+    ),
+    (
+        "A vibrant 3D Pixar-style vertical 9:16 portrait of Andrew the golden retriever puppy "
+        "collaborating with a friendly cat project manager over colorful project agile boards and charts."
+    ),
+    (
+        "A vibrant 3D Pixar-style vertical 9:16 portrait of Andrew the golden retriever puppy "
+        "smiling triumphantly next to a glowing PMP pass certificate and milestone board."
+    )
 ]
 
-for img_model in image_models_to_try:
-    try:
-        result_img = client.models.generate_content(
-            model=img_model,
-            contents=image_prompt,
-            config=types.GenerateContentConfig(response_modalities=["TEXT", "IMAGE"])
-        )
-        break
-    except Exception:
-        time.sleep(2)
+scene_clips = []
+scene_texts = ai_script_raw.split("[SCENE")
 
-image_bytes = None
-if result_img:
-    for part in result_img.candidates[0].content.parts:
-        if part.inline_data:
-            image_bytes = BytesIO(part.inline_data.data)
+# Filter out empty or header fragments
+valid_scenes = [s for s in scene_texts if "]" in s]
+
+for i, scene_content in enumerate(valid_scenes[:3]):
+    # Clean text for voiceover
+    clean_text = scene_content.split("]", 1)[1].strip()
+    
+    print(f"Processing Scene {i+1}...")
+    
+    # Generate image asset for this scene
+    result_img = None
+    for img_model in ["gemini-2.5-flash-image", "gemini-3.1-flash-image", "gemini-3.5-flash"]:
+        try:
+            result_img = client.models.generate_content(
+                model=img_model,
+                contents=scene_visual_prompts[i],
+                config=types.GenerateContentConfig(response_modalities=["TEXT", "IMAGE"])
+            )
             break
+        except Exception:
+            time.sleep(2)
+            
+    image_bytes = None
+    if result_img:
+        for part in result_img.candidates[0].content.parts:
+            if part.inline_data:
+                image_bytes = BytesIO(part.inline_data.data)
+                break
 
-bg_image_path = "reel_bg.jpg"
-if image_bytes:
-    img = Image.open(image_bytes).convert("RGB")
-    img.save(bg_image_path)
-else:
-    img = Image.new("RGB", (1080, 1920), color=(15, 23, 42))
-    img.save(bg_image_path)
+    img_path = f"scene_{i+1}.jpg"
+    if image_bytes:
+        img = Image.open(image_bytes).convert("RGB")
+        img = img.resize((1080, 1920), Image.Resampling.LANCZOS)
+        img.save(img_path)
+    else:
+        img = Image.new("RGB", (1080, 1920), color=(15, 23, 42))
+        img.save(img_path)
 
-# 3. Generate Voiceover Audio using gTTS
-print("Generating voiceover audio...")
-audio_path = "voiceover.mp3"
-tts = gTTS(text=ai_reel_raw, lang='en', slow=False)
-tts.save(audio_path)
+    # Generate Voiceover Audio for this scene
+    audio_path = f"scene_{i+1}.mp3"
+    tts = gTTS(text=clean_text, lang='en', slow=False)
+    tts.save(audio_path)
 
-# 4. Compile Background Image, Text Overlay, and Audio into a Video with MoviePy
-print("Compiling video reel with text overlays and audio...")
+    # Combine image and audio clip for the scene
+    audio_clip = AudioFileClip(audio_path)
+    img_clip = ImageClip(img_path).set_duration(audio_clip.duration)
+    
+    # Add subtle text overlay of key points
+    wrapped = "\n".join(textwrap.wrap(clean_text[:120] + "...", width=32))
+    txt_clip = TextClip(
+        wrapped,
+        fontsize=42,
+        color='white',
+        font='Arial-Bold',
+        align='center',
+        size=(1000, None)
+    ).set_duration(audio_clip.duration).set_position(('center', 'center'))
+
+    scene_video = CompositeVideoClip([img_clip, txt_clip]).set_audio(audio_clip)
+    scene_clips.append(scene_video)
+
+# 3. Concatenate all scenes into a 90+ second final video reel
+print("Concatenating scenes into final 90+ second video...")
+final_reel_clip = concatenate_videoclips(scene_clips)
 video_filename = "daily_pmp_reel.mp4"
-audio_clip = AudioFileClip(audio_path)
-image_clip = ImageClip(bg_image_path).set_duration(audio_clip.duration)
+final_reel_clip.write_videofile(video_filename, fps=24, codec="libx264", audio_codec="aac")
 
-# Create overlaid dynamic text clip for the video screen
-wrapped_text = "\n".join(textwrap.wrap(ai_reel_raw, width=32))
-txt_clip = TextClip(
-    wrapped_text,
-    fontsize=48,
-    color='white',
-    font='Arial-Bold',
-    align='center',
-    size=(1000, None)
-).set_duration(audio_clip.duration).set_position(('center', 'center'))
+# Cleanup temp files
+for i in range(3):
+    if os.path.exists(f"scene_{i+1}.jpg"):
+        os.remove(f"scene_{i+1}.jpg")
+    if os.path.exists(f"scene_{i+1}.mp3"):
+        os.remove(f"scene_{i+1}.mp3")
 
-# Composite image and text together, then attach audio
-video_clip = CompositeVideoClip([image_clip, txt_clip]).set_audio(audio_clip)
-video_clip.write_videofile(video_filename, fps=24, codec="libx264", audio_codec="aac")
-
-# Cleanup temporary audio file
-if os.path.exists(audio_path):
-    os.remove(audio_path)
-
-# 5. Format Caption Text
+# 4. Format Caption Text & Post to Facebook
 header_tag = "💡DAILY PMP REEL TIP💡\n\n"
-ai_reel_formatted = make_bold(ai_reel_raw)
+ai_reel_formatted = make_bold(ai_script_raw[:300] + "...")
 cta_block = (
     "\n\n👇 " + make_bold("READY TO PASS YOUR PMP EXAM ON THE FIRST TRY?") + "\n" +
     make_bold("Join 50,000 other students from 180 countries in top-rated training with Master of Project Academy:") + "\n" +
@@ -129,7 +152,6 @@ cta_block = (
 )
 post_text = header_tag + ai_reel_formatted + cta_block
 
-# 6. Exchange/Refresh Facebook Token using complete credentials
 app_id = os.environ["FACEBOOK_APP_ID"]
 app_secret = os.environ["FACEBOOK_APP_SECRET"]
 current_token = os.environ["FACEBOOK_ACCESS_TOKEN"]
@@ -145,9 +167,7 @@ refresh_params = {
 refresh_res = requests.get(refresh_url, params=refresh_params).json()
 active_token = refresh_res.get("access_token", current_token)
 
-# 7. Post the Reel/Video to Facebook Page
 post_url = f"https://graph.facebook.com/v18.0/{page_id}/videos"
-
 with open(video_filename, "rb") as video_file:
     files = {"source": video_file}
     payload = {
