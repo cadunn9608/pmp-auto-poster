@@ -5,6 +5,8 @@ import textwrap
 import requests
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
+from gtts import gTTS
+from moviepy.editor import ImageClip, AudioFileClip, TextClip, CompositeVideoClip
 from google import genai
 from google.genai import types
 
@@ -19,7 +21,7 @@ client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 reel_prompt = (
     "Create a short, engaging script for a daily PMP exam study tip video reel. "
     "Keep it punchy, focused on a core project management principle or mindset concept, "
-    "and optimize it for a social media video voiceover."
+    "and optimize it for a social media video voiceover. Do not include markdown headers or brackets."
 )
 
 ai_reel_raw = None
@@ -86,14 +88,38 @@ else:
     img = Image.new("RGB", (1080, 1920), color=(15, 23, 42))
     img.save(bg_image_path)
 
-# 3. Compile Image into Video using original MoviePy import
-from moviepy.editor import ImageClip
+# 3. Generate Voiceover Audio using gTTS
+print("Generating voiceover audio...")
+audio_path = "voiceover.mp3"
+tts = gTTS(text=ai_reel_raw, lang='en', slow=False)
+tts.save(audio_path)
 
+# 4. Compile Background Image, Text Overlay, and Audio into a Video with MoviePy
+print("Compiling video reel with text overlays and audio...")
 video_filename = "daily_pmp_reel.mp4"
-clip = ImageClip(bg_image_path).set_duration(10)
-clip.write_videofile(video_filename, fps=24, codec="libx264", audio=False)
+audio_clip = AudioFileClip(audio_path)
+image_clip = ImageClip(bg_image_path).set_duration(audio_clip.duration)
 
-# 4. Format Caption Text
+# Create overlaid dynamic text clip for the video screen
+wrapped_text = "\n".join(textwrap.wrap(ai_reel_raw, width=32))
+txt_clip = TextClip(
+    wrapped_text,
+    fontsize=48,
+    color='white',
+    font='Arial-Bold',
+    align='center',
+    size=(1000, None)
+).set_duration(audio_clip.duration).set_position(('center', 'center'))
+
+# Composite image and text together, then attach audio
+video_clip = CompositeVideoClip([image_clip, txt_clip]).set_audio(audio_clip)
+video_clip.write_videofile(video_filename, fps=24, codec="libx264", audio_codec="aac")
+
+# Cleanup temporary audio file
+if os.path.exists(audio_path):
+    os.remove(audio_path)
+
+# 5. Format Caption Text
 header_tag = "💡DAILY PMP REEL TIP💡\n\n"
 ai_reel_formatted = make_bold(ai_reel_raw)
 cta_block = (
@@ -103,7 +129,7 @@ cta_block = (
 )
 post_text = header_tag + ai_reel_formatted + cta_block
 
-# 5. Exchange/Refresh Facebook Token using complete credentials
+# 6. Exchange/Refresh Facebook Token using complete credentials
 app_id = os.environ["FACEBOOK_APP_ID"]
 app_secret = os.environ["FACEBOOK_APP_SECRET"]
 current_token = os.environ["FACEBOOK_ACCESS_TOKEN"]
@@ -119,7 +145,7 @@ refresh_params = {
 refresh_res = requests.get(refresh_url, params=refresh_params).json()
 active_token = refresh_res.get("access_token", current_token)
 
-# 6. Post the Reel/Video to Facebook Page
+# 7. Post the Reel/Video to Facebook Page
 post_url = f"https://graph.facebook.com/v18.0/{page_id}/videos"
 
 with open(video_filename, "rb") as video_file:
