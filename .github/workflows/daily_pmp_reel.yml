@@ -1,9 +1,9 @@
-name: Daily PMP Reel Automation
+name: Daily PMP Reel Automation (100% Free)
 
 on:
   schedule:
-    - cron: '0 12 * * *' # Runs automatically every day at 12:00 PM UTC
-  workflow_dispatch:      # Allows manual trigger anytime from the GitHub Actions tab
+    - cron: '0 12 * * *'
+  workflow_dispatch:
 
 jobs:
   generate-reel:
@@ -18,29 +18,33 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install System Dependencies (ImageMagick)
+      - name: Install System Dependencies
         run: |
           export DEBIAN_FRONTEND=noninteractive
           sudo apt-get update -qq
-          sudo apt-get install -y -qq imagemagick
+          sudo apt-get install -y -qq ffmpeg imagemagick
           sudo sed -i 's/none/read,write/g' /etc/ImageMagick-6/policy.xml || true
 
-      - name: Install Python Dependencies
+      - name: Clone Open-Source Wav2Lip & Download Weights
+        run: |
+          git clone https://github.com/Rudrabha/Wav2Lip.git
+          mkdir -p Wav2Lip/checkpoints
+          wget -q https://github.com/Rudrabha/Wav2Lip/releases/download/v1.0/wav2lip_gan.pth -O Wav2Lip/checkpoints/wav2lip_gan.pth
+
+      - name: Install Python Packages
         run: |
           python -m pip install --upgrade pip
-          pip install google-genai moviepy==1.0.3 requests pillow gtts
+          pip install google-genai gtts moviepy requests torch torchvision librosa opencv-python
 
-      - name: Run Daily PMP Reel Script
+      - name: Run Script
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          FACEBOOK_APP_ID: ${{ secrets.FACEBOOK_APP_ID }}
-          FACEBOOK_APP_SECRET: ${{ secrets.FACEBOOK_APP_SECRET }}
-          FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
-          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          FB_ACCESS_TOKEN: ${{ secrets.FB_ACCESS_TOKEN }}
         run: |
           python generate_pmp_reel.py
 
-      - name: Upload Generated Reel Artifact
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: daily-pmp-reel
