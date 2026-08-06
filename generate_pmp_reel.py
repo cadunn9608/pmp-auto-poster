@@ -1,159 +1,52 @@
-import os
-import json
-import time
-import subprocess
-import requests
-from google import genai
-from gtts import gTTS
-from moviepy import VideoFileClip, TextClip, CompositeVideoClip
+name: Daily PMP Reel Automation (100% Free)
 
-# ==============================================================================
-# CONFIGURATION & ENVIRONMENT VARIABLES
-# ==============================================================================
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-FB_PAGE_ID = os.environ.get("FB_PAGE_ID")
-FB_ACCESS_TOKEN = os.environ.get("FB_ACCESS_TOKEN")
+on:
+  schedule:
+    - cron: '0 12 * * *'
+  workflow_dispatch:
 
-BASE_VIDEO = "andrew_petey_anchor_clean.mp4"  # 58-second clean base video
-VOICE_AUDIO = "speech.mp3"
-LIPSYNC_VIDEO = "animated_andrew.mp4"
-FINAL_REEL = "daily_pmp_reel.mp4"
-
-# ==============================================================================
-# STEP 1: GEMINI GENERATES PMP QUESTION + VOICE SCRIPT (FREE API)
-# ==============================================================================
-def get_daily_pmp_content():
-    print("1️⃣ Fetching PMP question and spoken script from Gemini...")
-    client = genai.Client(api_key=GEMINI_API_KEY)
+jobs:
+  generate-reel:
+    runs-on: ubuntu-latest
     
-    prompt = """
-    Generate a PMP exam situational question and a lively spoken script for a 3D animated dog host named Andrew.
-    Output strictly as valid JSON:
-    {
-        "topic": "Agile Stakeholder Engagement",
-        "question": "A key stakeholder wants out-of-scope changes during a sprint...",
-        "option_a": "A) Accept the changes",
-        "option_b": "B) Direct them to the Product Owner",
-        "option_c": "C) Escalate to the sponsor",
-        "option_d": "D) Refuse the request",
-        "correct_answer": "B) Direct them to the Product Owner",
-        "explanation": "In Agile, the Product Owner owns the product backlog and evaluates scope changes.",
-        "spoken_script": "Hey team! Here is your daily PMP practice question. A key stakeholder asks for out-of-scope changes during an active sprint. What should you do? Option A, accept them. Option B, direct them to the Product Owner. Option C, escalate. Or Option D, refuse. Think about it!"
-    }
-    """
-    
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt,
-        config={"response_mime_type": "application/json"}
-    )
-    return json.loads(response.text)
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-# ==============================================================================
-# STEP 2: FREE VOICE GENERATION (gTTS)
-# ==============================================================================
-def generate_voiceover(text):
-    print("2️⃣ Generating free audio track with gTTS...")
-    tts = gTTS(text=text, lang='en', tld='com', slow=False)
-    tts.save(VOICE_AUDIO)
-    print("Audio file saved successfully.")
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
 
-# ==============================================================================
-# STEP 3: OPEN-SOURCE LIP-SYNCING (Wav2Lip)
-# ==============================================================================
-def sync_lip_movement():
-    print("3️⃣ Running Wav2Lip to animate Andrew's mouth to the audio...")
-    # Calls open-source Wav2Lip inference script
-    cmd = [
-        "python", "Wav2Lip/inference.py",
-        "--checkpoint_path", "Wav2Lip/checkpoints/wav2lip_gan.pth",
-        "--face", BASE_VIDEO,
-        "--audio", VOICE_AUDIO,
-        "--outfile", LIPSYNC_VIDEO,
-        "--resize_factor", "1"
-    ]
-    subprocess.run(cmd, check=True)
-    print("Lip-sync animation complete!")
+      - name: Install System Dependencies
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg imagemagick
+          sudo sed -i 's/none/read,write/g' /etc/ImageMagick-6/policy.xml || true
 
-# ==============================================================================
-# STEP 4: OVERLAY TEXT CARDS OVER ANIMATED VIDEO
-# ==============================================================================
-def render_final_reel(data):
-    print("4️⃣ Overlaying text tiles onto animated Reel...")
-    bg_clip = VideoFileClip(LIPSYNC_VIDEO).subclipped(0, 58)
-    
-    # Question Overlay (0s - 30s)
-    q_text = (
-        f"DAILY PMP PREP: {data['topic'].upper()}\n\n"
-        f"Q: {data['question']}\n\n"
-        f"{data['option_a']}\n{data['option_b']}\n{data['option_c']}\n{data['option_d']}"
-    )
-    q_tile = TextClip(
-        text=q_text,
-        font_size=24,
-        color='white',
-        bg_color='black',
-        font='Arial-Bold',
-        method='caption',
-        size=(620, 750),
-        text_align='center'
-    ).with_position(('center', 100)).with_start(0).with_duration(30)
+      - name: Clone Open-Source Wav2Lip & Download Weights
+        run: |
+          git clone https://github.com/Rudrabha/Wav2Lip.git
+          mkdir -p Wav2Lip/checkpoints
+          wget -q https://github.com/Rudrabha/Wav2Lip/releases/download/v1.0/wav2lip_gan.pth -O Wav2Lip/checkpoints/wav2lip_gan.pth
 
-    # Answer Overlay (30s - 58s)
-    a_text = (
-        f"CORRECT ANSWER:\n{data['correct_answer']}\n\n"
-        f"EXPLANATION:\n{data['explanation']}\n\n"
-        f"👍 Like & Follow for Daily PMP Prep!"
-    )
-    a_tile = TextClip(
-        text=a_text,
-        font_size=26,
-        color='yellow',
-        bg_color='black',
-        font='Arial-Bold',
-        method='caption',
-        size=(620, 650),
-        text_align='center'
-    ).with_position(('center', 150)).with_start(30).with_duration(28)
+      - name: Install Python Packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install google-genai gtts moviepy requests torch torchvision librosa opencv-python
 
-    final = CompositeVideoClip([bg_clip, q_tile, a_tile])
-    final.write_videofile(FINAL_REEL, fps=30, codec="libx264", audio_codec="aac")
-    print("Final 58-second animated Reel exported!")
+      - name: Run Script
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          FB_ACCESS_TOKEN: ${{ secrets.FB_ACCESS_TOKEN }}
+        run: |
+          python generate_pmp_reel.py
 
-# ==============================================================================
-# STEP 5: PUBLISH TO FACEBOOK (FREE GRAPH API)
-# ==============================================================================
-def publish_to_facebook():
-    print("5️⃣ Uploading Reel to Facebook Page...")
-    init_url = f"https://graph.facebook.com/v19.0/{FB_PAGE_ID}/video_reels"
-    init_params = {"upload_phase": "start", "access_token": FB_ACCESS_TOKEN}
-    init_res = requests.post(init_url, data=init_params).json()
-    
-    video_id = init_res.get("video_id")
-    upload_url = init_res.get("upload_url")
-
-    with open(FINAL_REEL, "rb") as f:
-        headers = {"Authorization": f"OAuth {FB_ACCESS_TOKEN}", "file_offset": "0"}
-        requests.post(upload_url, headers=headers, data=f)
-
-    finish_params = {
-        "upload_phase": "finish",
-        "access_token": FB_ACCESS_TOKEN,
-        "video_id": video_id,
-        "video_state": "PUBLISHED",
-        "description": "Daily PMP Exam Practice Reel! 🐶 #PMP #ProjectManagement #Agile"
-    }
-    res = requests.post(init_url, data=finish_params).json()
-    print("Facebook Publish Status:", res)
-
-# ==============================================================================
-# MAIN EXECUTION
-# ==============================================================================
-if __name__ == "__main__":
-    content = get_daily_pmp_content()
-    generate_voiceover(content["spoken_script"])
-    sync_lip_movement()
-    render_final_reel(content)
-    
-    if FB_PAGE_ID and FB_ACCESS_TOKEN:
-        publish_to_facebook()
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-pmp-reel
+          path: daily_pmp_reel.mp4
+          retention-days: 7
