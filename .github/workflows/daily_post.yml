@@ -33,6 +33,7 @@ jobs:
           python -c '
           import os
           import time
+          import random
           import requests
           from google import genai
 
@@ -83,11 +84,20 @@ jobs:
           header2 = "✅ " + make_bold("CORRECT ANSWER:")
           header3 = "🧠 " + make_bold("THE PMP MINDSET BREAKDOWN:")
 
-          cta_block = (
-              "\n\n👇 " + make_bold("READY TO PASS YOUR PMP EXAM ON THE FIRST TRY?") + "\n" +
-              make_bold("Join 50,000 other students from 180 countries in top-rated training with Master of Project Academy:") + "\n" +
-              "https://masterofproject.com/"
-          )
+          capm_link = "https://courses.velociteach.com/online-courses/capm-pta/?ref=nwvmngf&tm_daily_question=0806"
+          
+          capm_ctas = [
+              "👇 " + make_bold("NOT QUITE READY FOR THE PMP? BUILD YOUR FOUNDATION FIRST!") + "\n" +
+              f"Test your knowledge with the full 3-hour CAPM Practice Test from Velociteach for $89:\n{capm_link}",
+              
+              "👇 " + make_bold("BUILDING YOUR PROJECT MANAGEMENT CAREER?") + "\n" +
+              f"The CAPM is the perfect stepping stone to the PMP. Try this comprehensive 3-hour practice exam from Velociteach:\n{capm_link}",
+              
+              "👇 " + make_bold("WANT TO TEST YOUR BASELINE KNOWLEDGE?") + "\n" +
+              f"See where you stand with this complete 3-hour CAPM practice exam from Velociteach:\n{capm_link}"
+          ]
+          
+          cta_block = "\n\n" + random.choice(capm_ctas)
 
           ai_text = ai_text.replace("PMP PRACTICE QUESTION OF THE DAY", header1)
           ai_text = ai_text.replace("Pmp Practice Question Of The Day", header1)
