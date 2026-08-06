@@ -57,7 +57,9 @@ animals_pool = [
     "a joyful golden retriever puppy and a curious red panda",
     "a golden retriever puppy and a clever baby elephant wearing tiny glasses",
     "a cute golden retriever puppy and a friendly capybara",
-    "a cheerful golden retriever puppy and an energetic fox kit"
+    "a cheerful golden retriever puppy and an energetic fox kit",
+    "a golden retriever and a bunny rabbit",
+    "a senior golden retriever and a american bulldog mix puppy"
 ]
 
 settings_pool = [
@@ -65,7 +67,9 @@ settings_pool = [
     "a cozy rustic wooden treehouse study room surrounded by green forest canopy views",
     "a futuristic sci-fi command center with glowing holographic project schedules",
     "a bright beachside patio overlooking the ocean with tropical plants and sunny skies",
-    "a vintage artisan workshop filled with creative blueprints, tools, and warm lighting"
+    "a vintage artisan workshop filled with creative blueprints, tools, and warm lighting",
+    "a modern tech startup conference room",
+    "a college library study table"
 ]
 
 selected_animals = random.choice(animals_pool)
@@ -164,13 +168,24 @@ for line in wrapped_lines:
 img.save(image_path)
 print("Text box margins and wrapping successfully corrected!")
 
-# 4. Format Social Media Caption Text
+# 4. Format Social Media Caption Text (UPDATED FOR VELOCITEACH CAPM)
 post_header = make_bold(header_tag)
-cta_block = (
-    "\n\n👇 " + make_bold("READY TO PASS YOUR PMP EXAM ON THE FIRST TRY?") + "\n" +
-    make_bold("Join 50,000 other students from 180 countries in top-rated training with Master of Project Academy:") + "\n" +
-    "https://masterofproject.com/"
-)
+
+capm_link = "https://courses.velociteach.com/online-courses/capm-pta/?ref=nwvmngf&tm_daily_question=0806"
+
+# Rotating CTAs to prevent Facebook from flagging posts as repetitive spam
+capm_ctas = [
+    "👇 " + make_bold("NOT QUITE READY FOR THE PMP? BUILD YOUR FOUNDATION FIRST!") + "\n" +
+    f"Test your knowledge with Velociteach's full 3-hour CAPM Practice Test for $89:\n{capm_link}",
+    
+    "👇 " + make_bold("BUILDING YOUR PROJECT MANAGEMENT CAREER?") + "\n" +
+    f"The CAPM is the perfect stepping stone to the PMP. Try this comprehensive 3-hour practice exam from Velociteach:\n{capm_link}",
+    
+    "👇 " + make_bold("WANT TO TEST YOUR BASELINE KNOWLEDGE?") + "\n" +
+    f"See where you stand with this complete 3-hour CAPM practice exam from Velociteach:\n{capm_link}"
+]
+
+cta_block = "\n\n" + random.choice(capm_ctas)
 post_text = post_header + ai_tip_formatted + cta_block
 
 # 5. Exchange/Refresh Facebook Token
