@@ -1,179 +1,159 @@
 import os
+import json
 import time
-import textwrap
+import subprocess
 import requests
-from io import BytesIO
-from PIL import Image
-from gtts import gTTS
-from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips, CompositeVideoClip, TextClip
 from google import genai
-from google.genai import types
+from gtts import gTTS
+from moviepy import VideoFileClip, TextClip, CompositeVideoClip
 
-def make_bold(text):
-    normal = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-    bold = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵"
-    return text.translate(str.maketrans(normal, bold))
+# ==============================================================================
+# CONFIGURATION & ENVIRONMENT VARIABLES
+# ==============================================================================
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+FB_PAGE_ID = os.environ.get("FB_PAGE_ID")
+FB_ACCESS_TOKEN = os.environ.get("FB_ACCESS_TOKEN")
 
-client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+BASE_VIDEO = "andrew_petey_anchor_clean.mp4"  # 58-second clean base video
+VOICE_AUDIO = "speech.mp3"
+LIPSYNC_VIDEO = "animated_andrew.mp4"
+FINAL_REEL = "daily_pmp_reel.mp4"
 
-# 1. Generate Multi-Scene Script from Gemini
-script_prompt = (
-    "Create a 90-second multi-scene script for a daily PMP exam study tip video reel. "
-    "Break it down into 3 distinct scenes: "
-    "Scene 1: Introduction with Andrew the golden retriever puppy introducing a tricky PMP scenario. "
-    "Scene 2: The core project management principle or mindset breakdown with a supporting character. "
-    "Scene 3: The takeaway and call to action. "
-    "Return the output as plain text with clear scene markers like [SCENE 1], [SCENE 2], [SCENE 3]."
-)
-
-ai_script_raw = None
-text_models_to_try = [
-    "gemini-2.0-flash",
-    "gemini-3.5-flash",
-    "gemini-3.1-flash",
-    "gemini-3.6-flash"
-]
-
-for model_name in text_models_to_try:
-    try:
-        response_text = client.models.generate_content(
-            model=model_name,
-            contents=script_prompt,
-        )
-        ai_script_raw = response_text.text.strip()
-        break
-    except Exception:
-        time.sleep(2)
-
-if not ai_script_raw:
-    raise Exception("Failed to generate multi-scene script.")
-
-print("Multi-scene script generated successfully!")
-
-# 2. Split script into scenes and generate corresponding 3D Pixar-style visuals
-scene_visual_prompts = [
-    (
-        "A vibrant 3D Pixar-style vertical 9:16 portrait of Andrew the golden retriever puppy "
-        "sitting at a modern desk in a sunny office setting, looking charismatic and welcoming."
-    ),
-    (
-        "A vibrant 3D Pixar-style vertical 9:16 portrait of Andrew the golden retriever puppy "
-        "collaborating with a friendly cat project manager over colorful project agile boards and charts."
-    ),
-    (
-        "A vibrant 3D Pixar-style vertical 9:16 portrait of Andrew the golden retriever puppy "
-        "smiling triumphantly next to a glowing PMP pass certificate and milestone board."
-    )
-]
-
-scene_clips = []
-scene_texts = ai_script_raw.split("[SCENE")
-
-# Filter out empty or header fragments
-valid_scenes = [s for s in scene_texts if "]" in s]
-
-for i, scene_content in enumerate(valid_scenes[:3]):
-    # Clean text for voiceover
-    clean_text = scene_content.split("]", 1)[1].strip()
+# ==============================================================================
+# STEP 1: GEMINI GENERATES PMP QUESTION + VOICE SCRIPT (FREE API)
+# ==============================================================================
+def get_daily_pmp_content():
+    print("1️⃣ Fetching PMP question and spoken script from Gemini...")
+    client = genai.Client(api_key=GEMINI_API_KEY)
     
-    print(f"Processing Scene {i+1}...")
-    
-    # Generate image asset for this scene
-    result_img = None
-    for img_model in ["gemini-2.5-flash-image", "gemini-3.1-flash-image", "gemini-3.5-flash"]:
-        try:
-            result_img = client.models.generate_content(
-                model=img_model,
-                contents=scene_visual_prompts[i],
-                config=types.GenerateContentConfig(response_modalities=["TEXT", "IMAGE"])
-            )
-            break
-        except Exception:
-            time.sleep(2)
-            
-    image_bytes = None
-    if result_img:
-        for part in result_img.candidates[0].content.parts:
-            if part.inline_data:
-                image_bytes = BytesIO(part.inline_data.data)
-                break
-
-    img_path = f"scene_{i+1}.jpg"
-    if image_bytes:
-        img = Image.open(image_bytes).convert("RGB")
-        img = img.resize((1080, 1920), Image.Resampling.LANCZOS)
-        img.save(img_path)
-    else:
-        img = Image.new("RGB", (1080, 1920), color=(15, 23, 42))
-        img.save(img_path)
-
-    # Generate Voiceover Audio for this scene
-    audio_path = f"scene_{i+1}.mp3"
-    tts = gTTS(text=clean_text, lang='en', slow=False)
-    tts.save(audio_path)
-
-    # Combine image and audio clip for the scene
-    audio_clip = AudioFileClip(audio_path)
-    img_clip = ImageClip(img_path).set_duration(audio_clip.duration)
-    
-    # Add subtle text overlay of key points
-    wrapped = "\n".join(textwrap.wrap(clean_text[:120] + "...", width=32))
-    txt_clip = TextClip(
-        wrapped,
-        fontsize=42,
-        color='white',
-        font='Arial-Bold',
-        align='center',
-        size=(1000, None)
-    ).set_duration(audio_clip.duration).set_position(('center', 'center'))
-
-    scene_video = CompositeVideoClip([img_clip, txt_clip]).set_audio(audio_clip)
-    scene_clips.append(scene_video)
-
-# 3. Concatenate all scenes into a 90+ second final video reel
-print("Concatenating scenes into final 90+ second video...")
-final_reel_clip = concatenate_videoclips(scene_clips)
-video_filename = "daily_pmp_reel.mp4"
-final_reel_clip.write_videofile(video_filename, fps=24, codec="libx264", audio_codec="aac")
-
-# Cleanup temp files
-for i in range(3):
-    if os.path.exists(f"scene_{i+1}.jpg"):
-        os.remove(f"scene_{i+1}.jpg")
-    if os.path.exists(f"scene_{i+1}.mp3"):
-        os.remove(f"scene_{i+1}.mp3")
-
-# 4. Format Caption Text & Post to Facebook
-header_tag = "💡DAILY PMP REEL TIP💡\n\n"
-ai_reel_formatted = make_bold(ai_script_raw[:300] + "...")
-cta_block = (
-    "\n\n👇 " + make_bold("READY TO PASS YOUR PMP EXAM ON THE FIRST TRY?") + "\n" +
-    make_bold("Join 50,000 other students from 180 countries in top-rated training with Master of Project Academy:") + "\n" +
-    "https://masterofproject.com/"
-)
-post_text = header_tag + ai_reel_formatted + cta_block
-
-app_id = os.environ["FACEBOOK_APP_ID"]
-app_secret = os.environ["FACEBOOK_APP_SECRET"]
-current_token = os.environ["FACEBOOK_ACCESS_TOKEN"]
-page_id = os.environ["FACEBOOK_PAGE_ID"]
-
-refresh_url = "https://graph.facebook.com/v18.0/oauth/access_token"
-refresh_params = {
-    "grant_type": "fb_exchange_token",
-    "client_id": app_id,
-    "client_secret": app_secret,
-    "fb_exchange_token": current_token
-}
-refresh_res = requests.get(refresh_url, params=refresh_params).json()
-active_token = refresh_res.get("access_token", current_token)
-
-post_url = f"https://graph.facebook.com/v18.0/{page_id}/videos"
-with open(video_filename, "rb") as video_file:
-    files = {"source": video_file}
-    payload = {
-        "description": post_text,
-        "access_token": active_token
+    prompt = """
+    Generate a PMP exam situational question and a lively spoken script for a 3D animated dog host named Andrew.
+    Output strictly as valid JSON:
+    {
+        "topic": "Agile Stakeholder Engagement",
+        "question": "A key stakeholder wants out-of-scope changes during a sprint...",
+        "option_a": "A) Accept the changes",
+        "option_b": "B) Direct them to the Product Owner",
+        "option_c": "C) Escalate to the sponsor",
+        "option_d": "D) Refuse the request",
+        "correct_answer": "B) Direct them to the Product Owner",
+        "explanation": "In Agile, the Product Owner owns the product backlog and evaluates scope changes.",
+        "spoken_script": "Hey team! Here is your daily PMP practice question. A key stakeholder asks for out-of-scope changes during an active sprint. What should you do? Option A, accept them. Option B, direct them to the Product Owner. Option C, escalate. Or Option D, refuse. Think about it!"
     }
-    res = requests.post(post_url, data=payload, files=files)
-    print("Facebook Reel Post Response:", res.json())
+    """
+    
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+        config={"response_mime_type": "application/json"}
+    )
+    return json.loads(response.text)
+
+# ==============================================================================
+# STEP 2: FREE VOICE GENERATION (gTTS)
+# ==============================================================================
+def generate_voiceover(text):
+    print("2️⃣ Generating free audio track with gTTS...")
+    tts = gTTS(text=text, lang='en', tld='com', slow=False)
+    tts.save(VOICE_AUDIO)
+    print("Audio file saved successfully.")
+
+# ==============================================================================
+# STEP 3: OPEN-SOURCE LIP-SYNCING (Wav2Lip)
+# ==============================================================================
+def sync_lip_movement():
+    print("3️⃣ Running Wav2Lip to animate Andrew's mouth to the audio...")
+    # Calls open-source Wav2Lip inference script
+    cmd = [
+        "python", "Wav2Lip/inference.py",
+        "--checkpoint_path", "Wav2Lip/checkpoints/wav2lip_gan.pth",
+        "--face", BASE_VIDEO,
+        "--audio", VOICE_AUDIO,
+        "--outfile", LIPSYNC_VIDEO,
+        "--resize_factor", "1"
+    ]
+    subprocess.run(cmd, check=True)
+    print("Lip-sync animation complete!")
+
+# ==============================================================================
+# STEP 4: OVERLAY TEXT CARDS OVER ANIMATED VIDEO
+# ==============================================================================
+def render_final_reel(data):
+    print("4️⃣ Overlaying text tiles onto animated Reel...")
+    bg_clip = VideoFileClip(LIPSYNC_VIDEO).subclipped(0, 58)
+    
+    # Question Overlay (0s - 30s)
+    q_text = (
+        f"DAILY PMP PREP: {data['topic'].upper()}\n\n"
+        f"Q: {data['question']}\n\n"
+        f"{data['option_a']}\n{data['option_b']}\n{data['option_c']}\n{data['option_d']}"
+    )
+    q_tile = TextClip(
+        text=q_text,
+        font_size=24,
+        color='white',
+        bg_color='black',
+        font='Arial-Bold',
+        method='caption',
+        size=(620, 750),
+        text_align='center'
+    ).with_position(('center', 100)).with_start(0).with_duration(30)
+
+    # Answer Overlay (30s - 58s)
+    a_text = (
+        f"CORRECT ANSWER:\n{data['correct_answer']}\n\n"
+        f"EXPLANATION:\n{data['explanation']}\n\n"
+        f"👍 Like & Follow for Daily PMP Prep!"
+    )
+    a_tile = TextClip(
+        text=a_text,
+        font_size=26,
+        color='yellow',
+        bg_color='black',
+        font='Arial-Bold',
+        method='caption',
+        size=(620, 650),
+        text_align='center'
+    ).with_position(('center', 150)).with_start(30).with_duration(28)
+
+    final = CompositeVideoClip([bg_clip, q_tile, a_tile])
+    final.write_videofile(FINAL_REEL, fps=30, codec="libx264", audio_codec="aac")
+    print("Final 58-second animated Reel exported!")
+
+# ==============================================================================
+# STEP 5: PUBLISH TO FACEBOOK (FREE GRAPH API)
+# ==============================================================================
+def publish_to_facebook():
+    print("5️⃣ Uploading Reel to Facebook Page...")
+    init_url = f"https://graph.facebook.com/v19.0/{FB_PAGE_ID}/video_reels"
+    init_params = {"upload_phase": "start", "access_token": FB_ACCESS_TOKEN}
+    init_res = requests.post(init_url, data=init_params).json()
+    
+    video_id = init_res.get("video_id")
+    upload_url = init_res.get("upload_url")
+
+    with open(FINAL_REEL, "rb") as f:
+        headers = {"Authorization": f"OAuth {FB_ACCESS_TOKEN}", "file_offset": "0"}
+        requests.post(upload_url, headers=headers, data=f)
+
+    finish_params = {
+        "upload_phase": "finish",
+        "access_token": FB_ACCESS_TOKEN,
+        "video_id": video_id,
+        "video_state": "PUBLISHED",
+        "description": "Daily PMP Exam Practice Reel! 🐶 #PMP #ProjectManagement #Agile"
+    }
+    res = requests.post(init_url, data=finish_params).json()
+    print("Facebook Publish Status:", res)
+
+# ==============================================================================
+# MAIN EXECUTION
+# ==============================================================================
+if __name__ == "__main__":
+    content = get_daily_pmp_content()
+    generate_voiceover(content["spoken_script"])
+    sync_lip_movement()
+    render_final_reel(content)
+    
+    if FB_PAGE_ID and FB_ACCESS_TOKEN:
+        publish_to_facebook()
