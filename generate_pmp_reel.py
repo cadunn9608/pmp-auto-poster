@@ -20,7 +20,7 @@ LIPSYNC_VIDEO = "animated_andrew.mp4"
 FINAL_REEL = "daily_pmp_reel.mp4"
 
 # ==============================================================================
-# STEP 1: GEMINI GENERATES PMP QUESTION + VOICE SCRIPT (WITH FALLBACKS)
+# STEP 1: GEMINI GENERATES PMP QUESTION + VOICE SCRIPT (WITH GEMINI 3 FALLBACKS)
 # ==============================================================================
 def get_daily_pmp_content():
     print("1️⃣ Fetching PMP question and spoken script from Gemini...")
@@ -42,18 +42,21 @@ def get_daily_pmp_content():
     }
     """
     
-    # Priority list of models to try in order
+    # Priority list of active Gemini 3 models to try in order
     text_models_to_try = [
+        "gemini-3.5-flash",
+        "gemini-3.1-flash",
+        "gemini-3.6-flash",
+        "gemini-3-flash-preview",
+        "gemini-3.1-flash-lite",
         "gemini-2.5-flash",
-        "gemini-2.0-flash",
-        "gemini-1.5-flash",
-        "gemini-1.5-pro"
+        "gemini-2.5-pro"
     ]
     
     last_exception = None
     for model_name in text_models_to_try:
         try:
-            print(f"Attempting to generate content with model: {model_name}...")
+            print(f"Attempting content generation with model: {model_name}...")
             response = client.models.generate_content(
                 model=model_name,
                 contents=prompt,
