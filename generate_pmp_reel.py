@@ -20,7 +20,7 @@ LIPSYNC_VIDEO = "animated_andrew.mp4"
 FINAL_REEL = "daily_pmp_reel.mp4"
 
 # ==============================================================================
-# STEP 1: GEMINI GENERATES PMP QUESTION + VOICE SCRIPT (FREE API)
+# STEP 1: GEMINI GENERATES PMP QUESTION + VOICE SCRIPT (WITH FALLBACKS)
 # ==============================================================================
 def get_daily_pmp_content():
     print("1️⃣ Fetching PMP question and spoken script from Gemini...")
@@ -42,12 +42,31 @@ def get_daily_pmp_content():
     }
     """
     
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt,
-        config={"response_mime_type": "application/json"}
-    )
-    return json.loads(response.text)
+    # Priority list of models to try in order
+    text_models_to_try = [
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+        "gemini-1.5-flash",
+        "gemini-1.5-pro"
+    ]
+    
+    last_exception = None
+    for model_name in text_models_to_try:
+        try:
+            print(f"Attempting to generate content with model: {model_name}...")
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config={"response_mime_type": "application/json"}
+            )
+            print(f"Successfully generated response using {model_name}!")
+            return json.loads(response.text)
+        except Exception as e:
+            print(f"⚠️ Model {model_name} failed: {e}")
+            last_exception = e
+            
+    # Raise exception if all fallback attempts fail
+    raise Exception(f"All fallback models failed. Last error: {last_exception}")
 
 # ==============================================================================
 # STEP 2: FREE VOICE GENERATION (gTTS)
