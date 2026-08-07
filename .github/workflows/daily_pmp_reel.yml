@@ -2,8 +2,8 @@ name: Daily PMP Reel Automation (100% Free)
 
 on:
   schedule:
-    - cron: '0 12 * * *' # Runs automatically every day at 12:00 PM UTC
-  workflow_dispatch:      # Allows manual trigger from GitHub Actions tab
+    - cron: '0 12 * * *'  # Runs automatically every day at 12:00 PM UTC
+  workflow_dispatch:       # Allows manual trigger from GitHub Actions tab
 
 jobs:
   generate-reel:
@@ -25,12 +25,15 @@ jobs:
           sudo apt-get install -y -qq ffmpeg imagemagick
           sudo sed -i 's/none/read,write/g' /etc/ImageMagick-6/policy.xml || true
 
-      - name: Clone Wav2Lip & Download Verified Weights
+      - name: Clone Wav2Lip & Download Checkpoints
         run: |
           rm -rf Wav2Lip
           git clone https://github.com/justinjohn0306/Wav2Lip.git Wav2Lip
           mkdir -p Wav2Lip/checkpoints
+          # Main Wav2Lip GAN weights
           wget -q https://huggingface.co/Nekochu/Wav2Lip/resolve/main/wav2lip_gan.pth -O Wav2Lip/checkpoints/wav2lip_gan.pth
+          # Face detector weights required by batch_face
+          wget -q https://huggingface.co/kaushikpandav/Lipsync_Antriksh_AI/resolve/main/checkpoints/mobilenet.pth -O Wav2Lip/checkpoints/mobilenet.pth
 
       - name: Install Python Dependencies
         run: |
