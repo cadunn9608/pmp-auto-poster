@@ -1,218 +1,181 @@
 import os
+import json
 import time
-import random
-import textwrap
+import subprocess
 import requests
-from io import BytesIO
-from PIL import Image, ImageDraw, ImageFont
 from google import genai
-from google.genai import types
+from gtts import gTTS
+from moviepy import VideoFileClip, TextClip, CompositeVideoClip
 
-def make_bold(text):
-    normal = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-    bold = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵"
-    return text.translate(str.maketrans(normal, bold))
+# ==============================================================================
+# CONFIGURATION & ENVIRONMENT VARIABLES
+# ==============================================================================
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+FB_PAGE_ID = os.environ.get("FB_PAGE_ID")
+FB_ACCESS_TOKEN = os.environ.get("FB_ACCESS_TOKEN")
 
-client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+BASE_VIDEO = "andrew_petey_anchor_clean.mp4"  # 58-second clean base video
+VOICE_AUDIO = "speech.mp3"
+LIPSYNC_VIDEO = "animated_andrew.mp4"
+FINAL_REEL = "daily_pmp_reel.mp4"
 
-# 1. Generate the Daily PMP Tip Text with model fallbacks
-tip_prompt = (
-    "Create a short, punchy, high-value daily PMP exam study tip optimized for social media. "
-    "Focus on a core project management principle, formula, or agile/predictive mindset concept. "
-    "Output only the tip content without any Markdown formatting or emojis."
-)
-
-ai_tip_raw = None
-text_models_to_try = [
-    "gemini-3.5-flash",
-    "gemini-3.1-flash",
-    "gemini-3.6-flash",
-    "gemini-3-flash-preview",
-    "gemini-3.1-flash-lite"
-]
-
-for model_name in text_models_to_try:
-    print(f"Attempting tip generation using model: {model_name}")
-    try:
-        response_text = client.models.generate_content(
-            model=model_name,
-            contents=tip_prompt,
-        )
-        ai_tip_raw = response_text.text.strip()
-        print(f"Successfully generated tip using {model_name}!")
-        break
-    except Exception as e:
-        print(f"Model {model_name} failed with error: {e}. Trying next...")
-        time.sleep(5)
-
-if not ai_tip_raw:
-    raise Exception("All models failed to generate tip content due to high demand.")
-
-header_tag = "💡DAILY PMP TIP💡\n\n"
-ai_tip_formatted = make_bold(ai_tip_raw)
-
-# 2. Dynamic Randomization Pools for Unique Daily Backgrounds
-animals_pool = [
-    "a fluffy golden retriever puppy and a playful orange kitten",
-    "a joyful golden retriever puppy and a curious red panda",
-    "a golden retriever puppy and a clever baby elephant wearing tiny glasses",
-    "a cute golden retriever puppy and a friendly capybara",
-    "a cheerful golden retriever puppy and an energetic fox kit",
-    "a golden retriever and a bunny rabbit",
-    "a senior golden retriever and a american bulldog mix puppy"
-]
-
-settings_pool = [
-    "a modern sunlit tech startup open-office with colorful beanbag chairs and whiteboards",
-    "a cozy rustic wooden treehouse study room surrounded by green forest canopy views",
-    "a futuristic sci-fi command center with glowing holographic project schedules",
-    "a bright beachside patio overlooking the ocean with tropical plants and sunny skies",
-    "a vintage artisan workshop filled with creative blueprints, tools, and warm lighting",
-    "a modern tech startup conference room",
-    "a college library study table"
-]
-
-selected_animals = random.choice(animals_pool)
-selected_setting = random.choice(settings_pool)
-
-image_prompt = (
-    f"A stunning 3D Pixar-style animated digital art illustration featuring {selected_animals} "
-    f"collaborating and working on a project inside {selected_setting}. "
-    "Bright cinematic lighting, charming details, vibrant professional colors, high quality 3D render."
-)
-
-# Image generation with built-in retry/fallback handling for 503 errors
-result_img = None
-image_models_to_try = [
-    "gemini-3.1-flash-image",
-    "gemini-3-pro-image",
-    "gemini-3.1-flash-lite-image",
-    "gemini-2.5-flash-image",
-    "gemini-3.5-flash"
-]
-
-print(f"Generating random daily image: {selected_animals} in {selected_setting}...")
-for img_model in image_models_to_try:
-    try:
-        print(f"Attempting image generation using model: {img_model}")
-        result_img = client.models.generate_content(
-            model=img_model,
-            contents=image_prompt,
-            config=types.GenerateContentConfig(
-                response_modalities=["TEXT", "IMAGE"]
-            )
-        )
-        break
-    except Exception as e:
-        print(f"Image model {img_model} failed with error: {e}. Retrying...")
-        time.sleep(10)
-
-if not result_img:
-    raise Exception("All image generation models failed due to high demand or server errors.")
-
-image_path = "daily_pmp_tip.jpg"
-image_bytes = None
-for part in result_img.candidates[0].content.parts:
-    if part.inline_data:
-        image_bytes = BytesIO(part.inline_data.data)
-        break
-
-if not image_bytes:
-    raise Exception("Failed to generate and extract image bytes from Gemini response.")
-
-# 3. Overlay with Corrected Margins and Safe Wrapping
-print("Overlaying PMP tip on image...")
-img = Image.open(image_bytes).convert("RGB")
-width, height = img.size
-
-font_size = max(20, int(height * 0.030))
-try:
-    font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf", font_size)
-except IOError:
-    font = ImageFont.load_default()
-
-draw = ImageDraw.Draw(img)
-
-# Balanced margins so the box has a clean border on both left and right
-margin = int(width * 0.06)
-text_box_w = width - (2 * margin)
-
-# Tighter character limit to guarantee text stays safely inside the right border
-char_limit = int(text_box_w / (font_size * 0.52))
-wrapped_lines = textwrap.wrap(ai_tip_raw, width=char_limit)
-
-line_height = font_size + 10
-text_box_h = (len(wrapped_lines) * line_height) + 36
-
-# Positioned near the bottom edge
-text_box_y = height - text_box_h - int(height * 0.04)
-text_box_x = margin
-
-overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
-overlay_draw = ImageDraw.Draw(overlay)
-overlay_draw.rounded_rectangle(
-    [text_box_x, text_box_y, text_box_x + text_box_w, text_box_y + text_box_h],
-    radius=18,
-    fill=(15, 23, 42, 245),
-    outline=(255, 255, 255, 180),
-    width=3
-)
-img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
-draw = ImageDraw.Draw(img)
-
-current_y = text_box_y + 18
-for line in wrapped_lines:
-    draw.text((text_box_x + 18, current_y), line, fill="white", font=font)
-    current_y += line_height
-
-img.save(image_path)
-print("Text box margins and wrapping successfully corrected!")
-
-# 4. Format Social Media Caption Text (UPDATED FOR VELOCITEACH CAPM)
-post_header = make_bold(header_tag)
-
-capm_link = "https://courses.velociteach.com/online-courses/capm-pta/?ref=nwvmngf&tm_daily_question=0806"
-
-# Rotating CTAs to prevent Facebook from flagging posts as repetitive spam
-capm_ctas = [
-    "👇 " + make_bold("NOT QUITE READY FOR THE PMP? BUILD YOUR FOUNDATION FIRST!") + "\n" +
-    f"Test your knowledge with Velociteach's full 3-hour CAPM Practice Test for $89:\n{capm_link}",
+# ==============================================================================
+# STEP 1: GEMINI GENERATES PMP QUESTION + VOICE SCRIPT (WITH GEMINI 3 FALLBACKS)
+# ==============================================================================
+def get_daily_pmp_content():
+    print("1️⃣ Fetching PMP question and spoken script from Gemini...")
+    client = genai.Client(api_key=GEMINI_API_KEY)
     
-    "👇 " + make_bold("BUILDING YOUR PROJECT MANAGEMENT CAREER?") + "\n" +
-    f"The CAPM is the perfect stepping stone to the PMP. Try this comprehensive 3-hour practice exam from Velociteach:\n{capm_link}",
-    
-    "👇 " + make_bold("WANT TO TEST YOUR BASELINE KNOWLEDGE?") + "\n" +
-    f"See where you stand with this complete 3-hour CAPM practice exam from Velociteach:\n{capm_link}"
-]
-
-cta_block = "\n\n" + random.choice(capm_ctas)
-post_text = post_header + ai_tip_formatted + cta_block
-
-# 5. Exchange/Refresh Facebook Token
-app_id = os.environ["FACEBOOK_APP_ID"]
-app_secret = os.environ["FACEBOOK_APP_SECRET"]
-current_token = os.environ["FACEBOOK_ACCESS_TOKEN"]
-
-refresh_url = "https://graph.facebook.com/v18.0/oauth/access_token"
-refresh_params = {
-    "grant_type": "fb_exchange_token",
-    "client_id": app_id,
-    "client_secret": app_secret,
-    "fb_exchange_token": current_token
-}
-refresh_res = requests.get(refresh_url, params=refresh_params).json()
-active_token = refresh_res.get("access_token", current_token)
-
-# 6. Post the Branded Photo + Caption to Facebook Page Feed
-page_id = os.environ["FACEBOOK_PAGE_ID"]
-post_url = f"https://graph.facebook.com/v18.0/{page_id}/photos"
-
-with open(image_path, "rb") as img_file:
-    files = {"source": img_file}
-    payload = {
-        "caption": post_text,
-        "published": "true",
-        "access_token": active_token
+    prompt = """
+    Generate a PMP exam situational question and a lively spoken script for a 3D animated dog host named Andrew.
+    Output strictly as valid JSON:
+    {
+        "topic": "Agile Stakeholder Engagement",
+        "question": "A key stakeholder wants out-of-scope changes during a sprint...",
+        "option_a": "A) Accept the changes",
+        "option_b": "B) Direct them to the Product Owner",
+        "option_c": "C) Escalate to the sponsor",
+        "option_d": "D) Refuse the request",
+        "correct_answer": "B) Direct them to the Product Owner",
+        "explanation": "In Agile, the Product Owner owns the product backlog and evaluates scope changes.",
+        "spoken_script": "Hey team! Here is your daily PMP practice question. A key stakeholder asks for out-of-scope changes during an active sprint. What should you do? Option A, accept them. Option B, direct them to the Product Owner. Option C, escalate. Or Option D, refuse. Think about it!"
     }
-    res = requests.post(post_url, data=payload, files=files)
-    print("Facebook Photo Post Response:", res.json())
+    """
+    
+    # Updated Gemini 3 model list
+    text_models_to_try = [
+        "gemini-3.5-flash",
+        "gemini-3.1-flash",
+        "gemini-3.6-flash",
+        "gemini-3-flash-preview",
+        "gemini-3.1-flash-lite"
+    ]
+    
+    last_exception = None
+    for model_name in text_models_to_try:
+        try:
+            print(f"Attempting to generate content with model: {model_name}...")
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config={"response_mime_type": "application/json"}
+            )
+            print(f"Successfully generated response using {model_name}!")
+            return json.loads(response.text)
+        except Exception as e:
+            print(f"⚠️ Model {model_name} failed: {e}")
+            last_exception = e
+            
+    # Raise exception if all fallback attempts fail
+    raise Exception(f"All fallback models failed. Last error: {last_exception}")
+
+# ==============================================================================
+# STEP 2: FREE VOICE GENERATION (gTTS)
+# ==============================================================================
+def generate_voiceover(text):
+    print("2️⃣ Generating free audio track with gTTS...")
+    tts = gTTS(text=text, lang='en', tld='com', slow=False)
+    tts.save(VOICE_AUDIO)
+    print("Audio file saved successfully.")
+
+# ==============================================================================
+# STEP 3: OPEN-SOURCE LIP-SYNCING (Wav2Lip)
+# ==============================================================================
+def sync_lip_movement():
+    print("3️⃣ Running Wav2Lip to animate Andrew's mouth to the audio...")
+    cmd = [
+        "python", "Wav2Lip/inference.py",
+        "--checkpoint_path", "Wav2Lip/checkpoints/wav2lip_gan.pth",
+        "--face", BASE_VIDEO,
+        "--audio", VOICE_AUDIO,
+        "--outfile", LIPSYNC_VIDEO,
+        "--resize_factor", "1"
+    ]
+    subprocess.run(cmd, check=True)
+    print("Lip-sync animation complete!")
+
+# ==============================================================================
+# STEP 4: OVERLAY TEXT CARDS OVER ANIMATED VIDEO
+# ==============================================================================
+def render_final_reel(data):
+    print("4️⃣ Overlaying text tiles onto animated Reel...")
+    bg_clip = VideoFileClip(LIPSYNC_VIDEO)
+    bg_clip = bg_clip.subclipped(0, 58) if hasattr(bg_clip, 'subclipped') else bg_clip.subclip(0, 58)
+    
+    # Question Overlay (0s - 30s)
+    q_text = (
+        f"DAILY PMP PREP: {data['topic'].upper()}\n\n"
+        f"Q: {data['question']}\n\n"
+        f"{data['option_a']}\n{data['option_b']}\n{data['option_c']}\n{data['option_d']}"
+    )
+    q_tile = TextClip(
+        text=q_text,
+        font_size=24,
+        color='white',
+        bg_color='black',
+        font='Arial-Bold',
+        method='caption',
+        size=(620, 750),
+        text_align='center'
+    ).with_position(('center', 100)).with_start(0).with_duration(30)
+
+    # Answer Overlay (30s - 58s)
+    a_text = (
+        f"CORRECT ANSWER:\n{data['correct_answer']}\n\n"
+        f"EXPLANATION:\n{data['explanation']}\n\n"
+        f"👍 Like & Follow for Daily PMP Prep!"
+    )
+    a_tile = TextClip(
+        text=a_text,
+        font_size=26,
+        color='yellow',
+        bg_color='black',
+        font='Arial-Bold',
+        method='caption',
+        size=(620, 650),
+        text_align='center'
+    ).with_position(('center', 150)).with_start(30).with_duration(28)
+
+    final = CompositeVideoClip([bg_clip, q_tile, a_tile])
+    final.write_videofile(FINAL_REEL, fps=30, codec="libx264", audio_codec="aac")
+    print("Final 58-second animated Reel exported!")
+
+# ==============================================================================
+# STEP 5: PUBLISH TO FACEBOOK (FREE GRAPH API)
+# ==============================================================================
+def publish_to_facebook():
+    print("5️⃣ Uploading Reel to Facebook Page...")
+    init_url = f"https://graph.facebook.com/v19.0/{FB_PAGE_ID}/video_reels"
+    init_params = {"upload_phase": "start", "access_token": FB_ACCESS_TOKEN}
+    init_res = requests.post(init_url, data=init_params).json()
+    
+    video_id = init_res.get("video_id")
+    upload_url = init_res.get("upload_url")
+
+    with open(FINAL_REEL, "rb") as f:
+        headers = {"Authorization": f"OAuth {FB_ACCESS_TOKEN}", "file_offset": "0"}
+        requests.post(upload_url, headers=headers, data=f)
+
+    finish_params = {
+        "upload_phase": "finish",
+        "access_token": FB_ACCESS_TOKEN,
+        "video_id": video_id,
+        "video_state": "PUBLISHED",
+        "description": "Daily PMP Exam Practice Reel! 🐶 #PMP #ProjectManagement #Agile"
+    }
+    res = requests.post(init_url, data=finish_params).json()
+    print("Facebook Publish Status:", res)
+
+# ==============================================================================
+# MAIN EXECUTION
+# ==============================================================================
+if __name__ == "__main__":
+    content = get_daily_pmp_content()
+    generate_voiceover(content["spoken_script"])
+    sync_lip_movement()
+    render_final_reel(content)
+    
+    if FB_PAGE_ID and FB_ACCESS_TOKEN:
+        publish_to_facebook()
+    else:
+        print("Facebook credentials not found. Video rendered locally only.")
