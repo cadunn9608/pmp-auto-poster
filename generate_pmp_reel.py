@@ -20,7 +20,7 @@ LIPSYNC_VIDEO = "animated_andrew.mp4"
 FINAL_REEL = "daily_pmp_reel.mp4"
 
 # ==============================================================================
-# STEP 1: GEMINI GENERATES PMP QUESTION + VOICE SCRIPT
+# STEP 1: GEMINI GENERATES PMP QUESTION + VOICE SCRIPT (GEMINI 3 ENGINE)
 # ==============================================================================
 def get_daily_pmp_content():
     print("1️⃣ Fetching PMP question and spoken script from Gemini...")
@@ -28,7 +28,7 @@ def get_daily_pmp_content():
     
     prompt = """
     Generate a PMP exam situational question and a lively spoken script for a 3D animated dog host named Andrew.
-    Output strictly valid JSON (do NOT use markdown backticks) with keys:
+    Output strictly as a valid JSON object with the following keys:
     {
         "topic": "Agile Stakeholder Engagement",
         "question": "A key stakeholder wants out-of-scope changes during a sprint...",
@@ -42,10 +42,13 @@ def get_daily_pmp_content():
     }
     """
     
+    # Your verified Gemini 3 fallback array
     text_models_to_try = [
-        "gemini-2.5-flash",
-        "gemini-2.0-flash",
-        "gemini-1.5-flash"
+        "gemini-3.5-flash",
+        "gemini-3.1-flash",
+        "gemini-3.6-flash",
+        "gemini-3-flash-preview",
+        "gemini-3.1-flash-lite"
     ]
     
     last_exception = None
@@ -58,16 +61,21 @@ def get_daily_pmp_content():
                 config={"response_mime_type": "application/json"}
             )
             
-            # Clean up response string if markdown wrappers are present
-            cleaned_text = response.text.strip()
-            if cleaned_text.startswith("```json"):
-                cleaned_text = cleaned_text[7:]
-            if cleaned_text.endswith("```"):
-                cleaned_text = cleaned_text[:-3]
-            cleaned_text = cleaned_text.strip()
+            # Sanitize the output string to strip any potential Markdown wrappers
+            raw_text = response.text.strip()
+            if raw_text.startswith("```json"):
+                raw_text = raw_text[7:]
+            elif raw_text.startswith("```"):
+                raw_text = raw_text[3:]
+            if raw_text.endswith("```"):
+                raw_text = raw_text[:-3]
+            cleaned_text = raw_text.strip()
             
-            print(f"Successfully generated response using {model_name}!")
-            return json.loads(cleaned_text)
+            # Attempt to decode the sanitized text
+            parsed_json = json.loads(cleaned_text)
+            print(f"Successfully generated and parsed response using {model_name}!")
+            return parsed_json
+            
         except Exception as e:
             print(f"⚠️ Model {model_name} failed: {e}")
             last_exception = e
@@ -150,7 +158,7 @@ def render_final_reel(data):
 # ==============================================================================
 def publish_to_facebook():
     print("5️⃣ Uploading Reel to Facebook Page...")
-    init_url = f"[https://graph.facebook.com/v19.0/](https://graph.facebook.com/v19.0/){FB_PAGE_ID}/video_reels"
+    init_url = f"https://graph.facebook.com/v19.0/{FB_PAGE_ID}/video_reels"
     init_params = {"upload_phase": "start", "access_token": FB_ACCESS_TOKEN}
     init_res = requests.post(init_url, data=init_params).json()
     
