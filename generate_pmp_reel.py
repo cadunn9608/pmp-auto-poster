@@ -1,194 +1,56 @@
-import os
-import json
-import time
-import subprocess
-import requests
-from google import genai
-from gtts import gTTS
-from moviepy import VideoFileClip, TextClip, CompositeVideoClip
+name: Daily PMP Reel Automation (100% Free)
 
-# ==============================================================================
-# CONFIGURATION & ENVIRONMENT VARIABLES
-# ==============================================================================
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-FB_PAGE_ID = os.environ.get("FB_PAGE_ID")
-FB_ACCESS_TOKEN = os.environ.get("FB_ACCESS_TOKEN")
+on:
+  schedule:
+    - cron: '0 12 * * *'  # Runs automatically every day at 12:00 PM UTC
+  workflow_dispatch:       # Allows manual trigger from GitHub Actions tab
 
-BASE_VIDEO = "andrew_petey_anchor_clean.mp4"  # 58-second clean base video
-VOICE_AUDIO = "speech.mp3"
-LIPSYNC_VIDEO = "animated_andrew.mp4"
-FINAL_REEL = "daily_pmp_reel.mp4"
-
-# ==============================================================================
-# STEP 1: GEMINI GENERATES PMP QUESTION + VOICE SCRIPT (GEMINI 3 ENGINE)
-# ==============================================================================
-def get_daily_pmp_content():
-    print("1️⃣ Fetching PMP question and spoken script from Gemini...")
-    client = genai.Client(api_key=GEMINI_API_KEY)
+jobs:
+  generate-reel:
+    runs-on: ubuntu-latest
     
-    prompt = """
-    Generate a PMP exam situational question and a lively spoken script for a 3D animated dog host named Andrew.
-    Output strictly as a valid JSON object with the following keys:
-    {
-        "topic": "Agile Stakeholder Engagement",
-        "question": "A key stakeholder wants out-of-scope changes during a sprint...",
-        "option_a": "A) Accept the changes",
-        "option_b": "B) Direct them to the Product Owner",
-        "option_c": "C) Escalate to the sponsor",
-        "option_d": "D) Refuse the request",
-        "correct_answer": "B) Direct them to the Product Owner",
-        "explanation": "In Agile, the Product Owner owns the product backlog and evaluates scope changes.",
-        "spoken_script": "Hey team! Here is your daily PMP practice question. A key stakeholder asks for out-of-scope changes during an active sprint. What should you do? Option A, accept them. Option B, direct them to the Product Owner. Option C, escalate. Or Option D, refuse. Think about it!"
-    }
-    """
-    
-    # Your verified Gemini 3 fallback array
-    text_models_to_try = [
-        "gemini-3.5-flash",
-        "gemini-3.1-flash",
-        "gemini-3.6-flash",
-        "gemini-3-flash-preview",
-        "gemini-3.1-flash-lite"
-    ]
-    
-    last_exception = None
-    for model_name in text_models_to_try:
-        try:
-            print(f"Attempting content generation with model: {model_name}...")
-            response = client.models.generate_content(
-                model=model_name,
-                contents=prompt,
-                config={"response_mime_type": "application/json"}
-            )
-            
-            # Sanitize the output string to strip any potential Markdown wrappers
-            raw_text = response.text.strip()
-            if raw_text.startswith("```json"):
-                raw_text = raw_text[7:]
-            elif raw_text.startswith("```"):
-                raw_text = raw_text[3:]
-            if raw_text.endswith("```"):
-                raw_text = raw_text[:-3]
-            cleaned_text = raw_text.strip()
-            
-            # Attempt to decode the sanitized text
-            parsed_json = json.loads(cleaned_text)
-            print(f"Successfully generated and parsed response using {model_name}!")
-            return parsed_json
-            
-        except Exception as e:
-            print(f"⚠️ Model {model_name} failed: {e}")
-            last_exception = e
-            
-    raise Exception(f"All fallback models failed. Last error: {last_exception}")
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-# ==============================================================================
-# STEP 2: FREE VOICE GENERATION (gTTS)
-# ==============================================================================
-def generate_voiceover(text):
-    print("2️⃣ Generating free audio track with gTTS...")
-    tts = gTTS(text=text, lang='en', tld='com', slow=False)
-    tts.save(VOICE_AUDIO)
-    print("Audio file saved successfully.")
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
 
-# ==============================================================================
-# STEP 3: OPEN-SOURCE LIP-SYNCING (Wav2Lip)
-# ==============================================================================
-def sync_lip_movement():
-    print("3️⃣ Running Wav2Lip to animate Andrew's mouth to the audio...")
-    cmd = [
-        "python", "Wav2Lip/inference.py",
-        "--checkpoint_path", "Wav2Lip/checkpoints/wav2lip_gan.pth",
-        "--face", BASE_VIDEO,
-        "--audio", VOICE_AUDIO,
-        "--outfile", LIPSYNC_VIDEO,
-        "--resize_factor", "1"
-    ]
-    subprocess.run(cmd, check=True)
-    print("Lip-sync animation complete!")
+      - name: Install System Dependencies (FFmpeg & ImageMagick)
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg imagemagick
+          sudo sed -i 's/none/read,write/g' /etc/ImageMagick-6/policy.xml || true
 
-# ==============================================================================
-# STEP 4: OVERLAY TEXT CARDS OVER ANIMATED VIDEO
-# ==============================================================================
-def render_final_reel(data):
-    print("4️⃣ Overlaying text tiles onto animated Reel...")
-    bg_clip = VideoFileClip(LIPSYNC_VIDEO)
-    bg_clip = bg_clip.subclipped(0, 58) if hasattr(bg_clip, 'subclipped') else bg_clip.subclip(0, 58)
-    
-    # Question Overlay (0s - 30s)
-    q_text = (
-        f"DAILY PMP PREP: {data['topic'].upper()}\n\n"
-        f"Q: {data['question']}\n\n"
-        f"{data['option_a']}\n{data['option_b']}\n{data['option_c']}\n{data['option_d']}"
-    )
-    q_tile = TextClip(
-        text=q_text,
-        font_size=24,
-        color='white',
-        bg_color='black',
-        font='Arial-Bold',
-        method='caption',
-        size=(620, 750),
-        text_align='center'
-    ).with_position(('center', 100)).with_start(0).with_duration(30)
+      - name: Clone Wav2Lip & Download Checkpoints
+        run: |
+          rm -rf Wav2Lip
+          git clone https://github.com/justinjohn0306/Wav2Lip.git Wav2Lip
+          mkdir -p Wav2Lip/checkpoints
+          # Main Wav2Lip GAN weights
+          wget -q https://huggingface.co/Nekochu/Wav2Lip/resolve/main/wav2lip_gan.pth -O Wav2Lip/checkpoints/wav2lip_gan.pth
+          # Face detector weights required by batch_face
+          wget -q https://huggingface.co/kaushikpandav/Lipsync_Antriksh_AI/resolve/main/checkpoints/mobilenet.pth -O Wav2Lip/checkpoints/mobilenet.pth
 
-    # Answer Overlay (30s - 58s)
-    a_text = (
-        f"CORRECT ANSWER:\n{data['correct_answer']}\n\n"
-        f"EXPLANATION:\n{data['explanation']}\n\n"
-        f"👍 Like & Follow for Daily PMP Prep!"
-    )
-    a_tile = TextClip(
-        text=a_text,
-        font_size=26,
-        color='yellow',
-        bg_color='black',
-        font='Arial-Bold',
-        method='caption',
-        size=(620, 650),
-        text_align='center'
-    ).with_position(('center', 150)).with_start(30).with_duration(28)
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install google-genai gtts moviepy requests torch torchvision librosa opencv-python batch_face
 
-    final = CompositeVideoClip([bg_clip, q_tile, a_tile])
-    final.write_videofile(FINAL_REEL, fps=30, codec="libx264", audio_codec="aac")
-    print("Final 58-second animated Reel exported!")
+      - name: Run Daily PMP Script
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          FB_ACCESS_TOKEN: ${{ secrets.FB_ACCESS_TOKEN }}
+        run: |
+          python generate_pmp_reel.py
 
-# ==============================================================================
-# STEP 5: PUBLISH TO FACEBOOK (FREE GRAPH API)
-# ==============================================================================
-def publish_to_facebook():
-    print("5️⃣ Uploading Reel to Facebook Page...")
-    init_url = f"https://graph.facebook.com/v19.0/{FB_PAGE_ID}/video_reels"
-    init_params = {"upload_phase": "start", "access_token": FB_ACCESS_TOKEN}
-    init_res = requests.post(init_url, data=init_params).json()
-    
-    video_id = init_res.get("video_id")
-    upload_url = init_res.get("upload_url")
-
-    with open(FINAL_REEL, "rb") as f:
-        headers = {"Authorization": f"OAuth {FB_ACCESS_TOKEN}", "file_offset": "0"}
-        requests.post(upload_url, headers=headers, data=f)
-
-    finish_params = {
-        "upload_phase": "finish",
-        "access_token": FB_ACCESS_TOKEN,
-        "video_id": video_id,
-        "video_state": "PUBLISHED",
-        "description": "Daily PMP Exam Practice Reel! 🐶 #PMP #ProjectManagement #Agile"
-    }
-    res = requests.post(init_url, data=finish_params).json()
-    print("Facebook Publish Status:", res)
-
-# ==============================================================================
-# MAIN EXECUTION
-# ==============================================================================
-if __name__ == "__main__":
-    content = get_daily_pmp_content()
-    generate_voiceover(content["spoken_script"])
-    sync_lip_movement()
-    render_final_reel(content)
-    
-    if FB_PAGE_ID and FB_ACCESS_TOKEN:
-        publish_to_facebook()
-    else:
-        print("Facebook credentials not found. Video rendered locally only.")
+      - name: Upload Generated Reel Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-pmp-reel
+          path: daily_pmp_reel.mp4
+          retention-days: 7
