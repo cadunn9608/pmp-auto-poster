@@ -96,14 +96,15 @@ def generate_voiceover(text):
 def sync_lip_movement():
     print("3️⃣ Running Wav2Lip to animate Andrew's mouth to the audio...")
     cmd = [
-        "python", "Wav2Lip/inference.py",
-        "--checkpoint_path", "Wav2Lip/checkpoints/wav2lip_gan.pth",
-        "--face", BASE_VIDEO,
-        "--audio", VOICE_AUDIO,
-        "--outfile", LIPSYNC_VIDEO,
+        "python", "inference.py",
+        "--checkpoint_path", "checkpoints/wav2lip_gan.pth",
+        "--face", "../" + BASE_VIDEO,
+        "--audio", "../" + VOICE_AUDIO,
+        "--outfile", "../" + LIPSYNC_VIDEO,
         "--resize_factor", "1"
     ]
-    subprocess.run(cmd, check=True)
+    # Run directly inside the Wav2Lip folder so relative checkpoint paths align
+    subprocess.run(cmd, cwd="Wav2Lip", check=True)
     print("Lip-sync animation complete!")
 
 # ==============================================================================
