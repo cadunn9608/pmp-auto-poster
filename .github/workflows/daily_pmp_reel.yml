@@ -31,11 +31,11 @@ jobs:
           git clone https://github.com/justinjohn0306/Wav2Lip.git Wav2Lip
           mkdir -p Wav2Lip/checkpoints
           
-          # Download main Wav2Lip GAN checkpoint (with fail-on-error and follow-redirects)
+          # Download main Wav2Lip GAN checkpoint
           curl -fL "https://huggingface.co/Nekochu/Wav2Lip/resolve/main/wav2lip_gan.pth" -o "Wav2Lip/checkpoints/wav2lip_gan.pth"
           
-          # Download complete, verified face detector weights for batch_face
-          curl -fL "https://huggingface.co/gsv/RetinaFace/resolve/main/mobilenet.pth" -o "Wav2Lip/checkpoints/mobilenet.pth"
+          # Download public face detector weights from a stable GitHub Release mirror
+          curl -fL "https://github.com/uit2201-py-tech/video-dubbing/releases/download/v0.0.1/mobilenet.pth" -o "Wav2Lip/checkpoints/mobilenet.pth"
 
       - name: Install Python Dependencies
         run: |
