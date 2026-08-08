@@ -21,10 +21,34 @@ FB_ACCESS_TOKEN = os.environ.get("FB_ACCESS_TOKEN")
 # Determine base working directory dynamically
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-BASE_VIDEO = os.path.join(ROOT_DIR, "andrew_petey_anchor_clean.mp4")  # Clean base video in root
-VOICE_AUDIO = os.path.join(ROOT_DIR, "speech.mp3")                    # Audio generated in root
-LIPSYNC_VIDEO = os.path.join(ROOT_DIR, "animated_andrew.mp4")          # Output generated in root
-FINAL_REEL = os.path.join(ROOT_DIR, "daily_pmp_reel.mp4")              # Final video generated in root
+# Flexible file lookup for base video asset
+TARGET_FILENAME = "andrew_petey_anchor_clean.mp4"
+POSSIBLE_PATHS = [
+    os.path.join(ROOT_DIR, TARGET_FILENAME),
+    os.path.join(ROOT_DIR, "assets", TARGET_FILENAME),
+    os.path.join(ROOT_DIR, "media", TARGET_FILENAME)
+]
+
+if os.path.exists(ROOT_DIR):
+    for f in os.listdir(ROOT_DIR):
+        if f.lower() == TARGET_FILENAME.lower():
+            POSSIBLE_PATHS.insert(0, os.path.join(ROOT_DIR, f))
+
+BASE_VIDEO = None
+for path in POSSIBLE_PATHS:
+    if os.path.exists(path):
+        BASE_VIDEO = path
+        break
+
+if not BASE_VIDEO:
+    raise FileNotFoundError(
+        f"Could not find '{TARGET_FILENAME}' in {ROOT_DIR}. "
+        "Please ensure the video file is committed to your repository!"
+    )
+
+VOICE_AUDIO = os.path.join(ROOT_DIR, "speech.mp3")
+LIPSYNC_VIDEO = os.path.join(ROOT_DIR, "animated_andrew.mp4")
+FINAL_REEL = os.path.join(ROOT_DIR, "daily_pmp_reel.mp4")
 
 # ==============================================================================
 # STEP 1: GEMINI GENERATES PMP QUESTION + VOICE SCRIPT (GEMINI 3 ENGINE)
@@ -103,10 +127,6 @@ def generate_voiceover(text):
 def sync_lip_movement():
     print("3️⃣ Running Wav2Lip to animate Andrew's mouth to the audio...")
     
-    # Simple validation check to ensure the file is present in the workspace
-    if not os.path.exists(BASE_VIDEO):
-        raise FileNotFoundError(f"Missing base face file asset at absolute path: {BASE_VIDEO}")
-
     cmd = [
         "python", "inference.py",
         "--checkpoint_path", "checkpoints/wav2lip_gan.pth",
@@ -124,7 +144,6 @@ def sync_lip_movement():
 def render_final_reel(data):
     print("4️⃣ Overlaying text tiles onto animated Reel...")
     bg_clip = VideoFileClip(LIPSYNC_VIDEO)
-    bg_clip = bg_clip.subclipped(0, 58) if hasattr(bg_clip, 'subclipped') else bg_clip.subclip(0, 58)
     
     # Question Overlay (0s - 30s)
     q_text = (
@@ -165,30 +184,24 @@ def render_final_reel(data):
     print("Final 58-second animated Reel exported!")
 
 # ==============================================================================
-# STEP 5: PUBLISH TO FACEBOOK (FREE GRAPH API)
+# STEP 5: PUBLISH TO FACEBOOK (DIRECT PAGE VIDEO UPLOAD)
 # ==============================================================================
 def publish_to_facebook():
     print("5️⃣ Uploading Reel to Facebook Page...")
-    init_url = f"[https://graph.facebook.com/v19.0/](https://graph.facebook.com/v19.0/){FB_PAGE_ID}/video_reels"
-    init_params = {"upload_phase": "start", "access_token": FB_ACCESS_TOKEN}
-    init_res = requests.post(init_url, data=init_params).json()
+    url = f"[https://graph.facebook.com/v19.0/](https://graph.facebook.com/v19.0/){FB_PAGE_ID}/videos"
     
-    video_id = init_res.get("video_id")
-    upload_url = init_res.get("upload_url")
-
-    with open(FINAL_REEL, "rb") as f:
-        headers = {"Authorization": f"OAuth {FB_ACCESS_TOKEN}", "file_offset": "0"}
-        requests.post(upload_url, headers=headers, data=f)
-
-    finish_params = {
-        "upload_phase": "finish",
-        "access_token": FB_ACCESS_TOKEN,
-        "video_id": video_id,
-        "video_state": "PUBLISHED",
-        "description": "Daily PMP Exam Practice Reel! 🐶 #PMP #ProjectManagement #Agile"
+    payload = {
+        "description": "Daily PMP Exam Practice Reel! 🐶 #PMP #ProjectManagement #Agile",
+        "access_token": FB_ACCESS_TOKEN
     }
-    res = requests.post(init_url, data=finish_params).json()
-    print("Facebook Publish Status:", res)
+    
+    with open(FINAL_REEL, "rb") as video_file:
+        files = {
+            "source": video_file
+        }
+        res = requests.post(url, data=payload, files=files)
+        
+    print("Facebook Upload Response:", res.json())
 
 # ==============================================================================
 # MAIN EXECUTION
