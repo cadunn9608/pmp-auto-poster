@@ -51,8 +51,4 @@ jobs:
           python generate_pmp_reel.py
 
       - name: Upload Generated Reel Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: daily-pmp-reel
-          path: daily_pmp_reel.mp4
-          retention-days: 7
+        uses: actions/upload-artifact
