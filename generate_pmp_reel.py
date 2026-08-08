@@ -3,6 +3,10 @@ import json
 import time
 import subprocess
 import requests
+
+# Bypass PyTorch 2.6+ unpickling restriction for legacy model checkpoints
+os.environ["TORCH_FORCE_WEIGHTS_ONLY_LOAD"] = "0"
+
 from google import genai
 from gtts import gTTS
 from moviepy import VideoFileClip, TextClip, CompositeVideoClip
@@ -42,7 +46,6 @@ def get_daily_pmp_content():
     }
     """
     
-    # Gemini 3 fallback array
     text_models_to_try = [
         "gemini-3.5-flash",
         "gemini-3.1-flash",
@@ -103,7 +106,6 @@ def sync_lip_movement():
         "--outfile", "../" + LIPSYNC_VIDEO,
         "--resize_factor", "1"
     ]
-    # Run directly inside the Wav2Lip folder so relative checkpoint paths align
     subprocess.run(cmd, cwd="Wav2Lip", check=True)
     print("Lip-sync animation complete!")
 
