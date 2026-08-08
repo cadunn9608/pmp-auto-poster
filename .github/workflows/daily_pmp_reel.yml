@@ -31,16 +31,15 @@ jobs:
           git clone https://github.com/justinjohn0306/Wav2Lip.git Wav2Lip
           mkdir -p Wav2Lip/checkpoints
           
-          # Download main Wav2Lip GAN checkpoint
-          curl -sSL "https://huggingface.co/Nekochu/Wav2Lip/resolve/main/wav2lip_gan.pth" -o "Wav2Lip/checkpoints/wav2lip_gan.pth"
+          # Download main Wav2Lip GAN checkpoint (with fail-on-error and follow-redirects)
+          curl -fL "https://huggingface.co/Nekochu/Wav2Lip/resolve/main/wav2lip_gan.pth" -o "Wav2Lip/checkpoints/wav2lip_gan.pth"
           
-          # Download face detector weights required by batch_face
-          curl -sSL "https://huggingface.co/kaushikpandav/Lipsync_Antriksh_AI/resolve/main/checkpoints/mobilenet.pth" -o "Wav2Lip/checkpoints/mobilenet.pth"
+          # Download complete, verified face detector weights for batch_face
+          curl -fL "https://huggingface.co/gsv/RetinaFace/resolve/main/mobilenet.pth" -o "Wav2Lip/checkpoints/mobilenet.pth"
 
       - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip
-          # Pin torch<2.6 to prevent weights_only unpickling errors with legacy checkpoints
           pip install "torch<2.6" "torchvision<0.21" gtts moviepy requests librosa opencv-python batch_face google-genai
 
       - name: Run Daily PMP Script
