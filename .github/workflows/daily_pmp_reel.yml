@@ -34,8 +34,8 @@ jobs:
           # 1. Download main Wav2Lip GAN checkpoint
           curl -fL "https://huggingface.co/Nekochu/Wav2Lip/resolve/main/wav2lip_gan.pth" -o "Wav2Lip/checkpoints/wav2lip_gan.pth"
           
-          # 2. Download face detector weights required by batch_face from a fully public raw repository mirror
-          curl -fL "https://raw.githubusercontent.com/FurkanGozukara/Stable-Diffusion/main/Wav2Lip/checkpoints/mobilenet.pth" -o "Wav2Lip/checkpoints/mobilenet.pth"
+          # 2. Download face detector weights directly from official GitHub release
+          curl -fL "https://github.com/justinjohn0306/Wav2Lip/releases/download/models/mobilenet.pth" -o "Wav2Lip/checkpoints/mobilenet.pth"
 
       - name: Install Python Dependencies
         run: |
