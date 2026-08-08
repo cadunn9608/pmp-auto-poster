@@ -12,16 +12,19 @@ from gtts import gTTS
 from moviepy import VideoFileClip, TextClip, CompositeVideoClip
 
 # ==============================================================================
-# CONFIGURATION & ENVIRONMENT VARIABLES
+# CONFIGURATION & ABSOLUTE PATH SETUP
 # ==============================================================================
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 FB_PAGE_ID = os.environ.get("FB_PAGE_ID")
 FB_ACCESS_TOKEN = os.environ.get("FB_ACCESS_TOKEN")
 
-BASE_VIDEO = "andrew_petey_anchor_clean.mp4"  # 58-second clean base video
-VOICE_AUDIO = "speech.mp3"
-LIPSYNC_VIDEO = "animated_andrew.mp4"
-FINAL_REEL = "daily_pmp_reel.mp4"
+# Determine base working directory dynamically
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+BASE_VIDEO = os.path.join(ROOT_DIR, "andrew_petey_anchor_clean.mp4")  # Clean base video in root
+VOICE_AUDIO = os.path.join(ROOT_DIR, "speech.mp3")                    # Audio generated in root
+LIPSYNC_VIDEO = os.path.join(ROOT_DIR, "animated_andrew.mp4")          # Output generated in root
+FINAL_REEL = os.path.join(ROOT_DIR, "daily_pmp_reel.mp4")              # Final video generated in root
 
 # ==============================================================================
 # STEP 1: GEMINI GENERATES PMP QUESTION + VOICE SCRIPT (GEMINI 3 ENGINE)
@@ -46,6 +49,7 @@ def get_daily_pmp_content():
     }
     """
     
+    # Strictly Gemini 3 models list
     text_models_to_try = [
         "gemini-3.5-flash",
         "gemini-3.1-flash",
@@ -98,15 +102,20 @@ def generate_voiceover(text):
 # ==============================================================================
 def sync_lip_movement():
     print("3️⃣ Running Wav2Lip to animate Andrew's mouth to the audio...")
+    
+    # Simple validation check to ensure the file is present in the workspace
+    if not os.path.exists(BASE_VIDEO):
+        raise FileNotFoundError(f"Missing base face file asset at absolute path: {BASE_VIDEO}")
+
     cmd = [
         "python", "inference.py",
         "--checkpoint_path", "checkpoints/wav2lip_gan.pth",
-        "--face", "../" + BASE_VIDEO,
-        "--audio", "../" + VOICE_AUDIO,
-        "--outfile", "../" + LIPSYNC_VIDEO,
+        "--face", BASE_VIDEO,
+        "--audio", VOICE_AUDIO,
+        "--outfile", LIPSYNC_VIDEO,
         "--resize_factor", "1"
     ]
-    subprocess.run(cmd, cwd="Wav2Lip", check=True)
+    subprocess.run(cmd, cwd=os.path.join(ROOT_DIR, "Wav2Lip"), check=True)
     print("Lip-sync animation complete!")
 
 # ==============================================================================
