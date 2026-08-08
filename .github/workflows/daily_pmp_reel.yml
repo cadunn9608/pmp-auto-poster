@@ -25,15 +25,17 @@ jobs:
           sudo apt-get install -y -qq ffmpeg imagemagick
           sudo sed -i 's/none/read,write/g' /etc/ImageMagick-6/policy.xml || true
 
-      - name: Clone Wav2Lip & Download Checkpoints
+      - name: Clone Wav2Lip & Download Weights
         run: |
           rm -rf Wav2Lip
           git clone https://github.com/justinjohn0306/Wav2Lip.git Wav2Lip
           mkdir -p Wav2Lip/checkpoints
-          # Main Wav2Lip GAN weights
-          wget -q https://huggingface.co/Nekochu/Wav2Lip/resolve/main/wav2lip_gan.pth -O Wav2Lip/checkpoints/wav2lip_gan.pth
-          # Face detector weights required by batch_face
-          wget -q https://huggingface.co/kaushikpandav/Lipsync_Antriksh_AI/resolve/main/checkpoints/mobilenet.pth -O Wav2Lip/checkpoints/mobilenet.pth
+          
+          # Download main Wav2Lip GAN checkpoint
+          curl -sSL "https://huggingface.co/Nekochu/Wav2Lip/resolve/main/wav2lip_gan.pth" -o "Wav2Lip/checkpoints/wav2lip_gan.pth"
+          
+          # Download face detector weights required by batch_face
+          curl -sSL "https://huggingface.co/kaushikpandav/Lipsync_Antriksh_AI/resolve/main/checkpoints/mobilenet.pth" -o "Wav2Lip/checkpoints/mobilenet.pth"
 
       - name: Install Python Dependencies
         run: |
