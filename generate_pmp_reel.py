@@ -138,4 +138,182 @@ def get_daily_pmp_content():
                 if "```json" in raw_text:
                     raw_text = raw_text.split("```json")[1].split("```")[0]
                 elif "```" in raw_text:
-                    raw_text = raw_text.split("
+                    raw_text = raw_text.split("```")[1].split("```")[0]
+                return json.loads(raw_text.strip())
+            except Exception as e:
+                last_exception = e
+                print(f"⚠️ Model {model_name} failed: {e}")
+                if "503" in str(e):
+                    print("Server overloaded (503). Pausing briefly before next model...")
+                    time.sleep(10)
+                continue
+        
+        wait_time = attempt * 15
+        print(f"All models failed on attempt {attempt}. Waiting {wait_time} seconds before retrying...")
+        time.sleep(wait_time)
+            
+    raise Exception(f"All models and retries failed. Last error: {last_exception}")
+
+# ==============================================================================
+# STEP 4: GENERATE CHARACTER PORTRAIT NATIVELY VIA GEMINI
+# ==============================================================================
+def generate_character_image():
+    print("2️⃣ Generating Pixar-style character portrait via Gemini...")
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    
+    selected_combo = random.choice(character_settings_pool)
+    
+    image_prompt = (
+        f"A striking vertical portrait shot in the distinct visual style of Pixar and Disney, "
+        f"featuring {selected_combo}, "
+        "facing the camera directly, talking and expressive, vibrant studio lighting, polished cinematic digital rendering, perfect vertical mobile composition."
+    )
+    
+    image_models_to_try = ["gemini-2.5-flash", "gemini-3.1-flash-image", "gemini-3.1-flash-image-preview"]
+    image_bytes = None
+    
+    for img_model in image_models_to_try:
+        try:
+            response = client.models.generate_content(
+                model=img_model,
+                contents=image_prompt,
+            )
+            for candidate in response.candidates:
+                for part in candidate.content.parts:
+                    if part.inline_data and part.inline_data.data:
+                        image_bytes = part.inline_data.data
+                        break
+                if image_bytes:
+                    break
+            if image_bytes:
+                print(f"Successfully generated character image using model: {img_model}")
+                break
+        except Exception as e:
+            print(f"Image model {img_model} failed: {e}. Trying next...")
+            
+    if not image_bytes:
+        raise Exception("All Gemini image generation models failed.")
+        
+    img = Image.open(BytesIO(image_bytes)).convert("RGB")
+    img.save(GENERATED_IMAGE)
+    print("Character image successfully saved!")
+
+# ==============================================================================
+# STEP 5: EXPRESSIVE VOICE GENERATION (gTTS)
+# ==============================================================================
+def generate_voiceover(text):
+    print("3️⃣ Generating expressive audio track with gTTS...")
+    tts = gTTS(text=text, lang='en', tld='com', slow=False)
+    tts.save(VOICE_AUDIO)
+    
+    cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", VOICE_AUDIO]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    try:
+        return float(result.stdout.strip())
+    except ValueError:
+        return 45.0
+
+# ==============================================================================
+# STEP 6: RENDER TALKING REEL (STATIC PORTRAIT + AUDIO + TEXT OVERLAYS)
+# ==============================================================================
+def render_final_reel(data, audio_duration):
+    print("5️⃣ Assembling talking character Reel...")
+    
+    switch_time = audio_duration / 2.0 
+    target_w, target_h = 1080, 1920
+
+    from moviepy.video.VideoClip import TextClip, ColorClip, ImageClip
+    from moviepy.video.compositing.CompositeVideoClip import CompositeVideoClip
+    from moviepy.audio.io.AudioFileClip import AudioFileClip
+
+    image_clip = ImageClip(GENERATED_IMAGE).with_duration(audio_duration + 1.0).resize(newsize=(target_w, target_h))
+    audio_clip = AudioFileClip(VOICE_AUDIO)
+    video_with_audio = image_clip.with_audio(audio_clip)
+    
+    text_area_w = target_w - 100
+    text_area_h = 700
+
+    q_text = (
+        f"★ DAILY PMP PREP ★\n\n"
+        f"{data['question']}\n\n"
+        f"{data['option_a']}\n{data['option_b']}\n{data['option_c']}\n{data['option_d']}"
+    )
+    
+    q_text_clip = TextClip(
+        text=q_text,
+        font_size=38,
+        color='white',
+        font='Arial-Bold',
+        method='caption',
+        size=(text_area_w, text_area_h)
+    ).with_position(('center', 100)).with_start(0).with_duration(switch_time)
+
+    q_box = ColorClip(size=(text_area_w, text_area_h + 50), color=(15, 23, 42)).with_opacity(0.85).with_position(('center', 80)).with_start(0).with_duration(switch_time)
+
+    a_text = (
+        f"✅ CORRECT ANSWER:\n{data['correct_answer']}\n\n"
+        f"🧠 MINDSET:\n{data['explanation']}\n\n"
+        f"👍 Like & Follow for Daily PMP Prep!"
+    )
+    
+    a_text_clip = TextClip(
+        text=a_text,
+        font_size=42,
+        color='yellow',
+        font='Arial-Bold',
+        method='caption',
+        size=(text_area_w, text_area_h)
+    ).with_position(('center', 100)).with_start(switch_time).with_duration(audio_duration - switch_time + 1.0)
+    
+    a_box = ColorClip(size=(text_area_w, text_area_h + 50), color=(15, 23, 42)).with_opacity(0.85).with_position(('center', 80)).with_start(switch_time).with_duration(audio_duration - switch_time + 1.0)
+
+    final = CompositeVideoClip([video_with_audio, q_box, q_text_clip, a_box, a_text_clip])
+    
+    print("Writing final video file...")
+    try:
+        final.write_videofile(
+            FINAL_REEL, 
+            fps=25, 
+            codec="libx264", 
+            audio_codec="aac",
+            preset="ultrafast"
+        )
+        print("✅ Final talking character Reel exported!")
+    finally:
+        image_clip.close()
+        video_with_audio.close()
+        audio_clip.close()
+        final.close()
+
+# ==============================================================================
+# STEP 7: PUBLISH TO FACEBOOK
+# ==============================================================================
+def publish_to_facebook():
+    print("6️⃣ Uploading Reel to Facebook Page...")
+    url = f"https://graph.facebook.com/v19.0/{FB_PAGE_ID}/videos"
+    payload = {
+        "description": "Daily PMP Exam Practice Reel! 🐶 #PMP #ProjectManagement #Agile",
+        "access_token": FB_ACCESS_TOKEN,
+        "published": "true"
+    }
+    try:
+        with open(FINAL_REEL, "rb") as video_file:
+            files = {"source": video_file}
+            res = requests.post(url, data=payload, files=files, timeout=120)
+            print("Facebook Upload Response:", res.json())
+    except Exception as e:
+        print(f"❌ Facebook upload failed: {e}")
+
+# ==============================================================================
+# MAIN EXECUTION
+# ==============================================================================
+if __name__ == "__main__":
+    content = get_daily_pmp_content()
+    generate_character_image()
+    audio_dur = generate_voiceover(content["spoken_script"])
+    render_final_reel(content, audio_dur)
+    
+    if FB_PAGE_ID and FB_ACCESS_TOKEN:
+        publish_to_facebook()
+    else:
+        print("Facebook credentials not found. Video rendered locally only.")
