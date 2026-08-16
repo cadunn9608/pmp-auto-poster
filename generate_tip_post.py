@@ -77,29 +77,42 @@ settings_pool = [
 selected_animals = random.choice(animals_pool)
 selected_setting = random.choice(settings_pool)
 
-# 3. Generate Image using the Corrected Imagen Model ID
+# 3. Generate Image using the modern generate_content approach with fallback image models
 image_prompt = (
-    f"A professional, bright, eye-catching photo showing {selected_animals} inside {selected_setting}. "
+    f"Generate a professional, bright, eye-catching photo showing {selected_animals} inside {selected_setting}. "
     "High quality, vibrant lighting, clean composition suitable for a professional study brand background."
 )
 
 print(f"Generating background image with prompt: {image_prompt}")
-result = client.models.generate_images(
-    model='imagen-3.0-generate-001',
-    prompt=image_prompt,
-    config=types.GenerateImagesConfig(
-        number_of_images=1,
-        output_mime_type="image/jpeg",
-        aspect_ratio="1:1"
-    )
-)
 
-image_bytes = result.generated_images[0].image.image_bytes
+image_bytes = None
+image_models_to_try = ["imagen-3.0-generate-002", "gemini-2.5-flash", "gemini-3.5-flash"]
+
+for img_model in image_models_to_try:
+    try:
+        response = client.models.generate_content(
+            model=img_model,
+            contents=image_prompt,
+        )
+        # Check if the model returned inline image data in the response parts
+        if response.candidates and response.candidates[0].content.parts:
+            for part in response.candidates[0].content.parts:
+                if getattr(part, "inline_data", None) and part.inline_data.data:
+                    image_bytes = part.inline_data.data
+                    break
+        if image_bytes:
+            print(f"Successfully generated background image using model: {img_model}")
+            break
+    except Exception as e:
+        print(f"Image model {img_model} failed: {e}. Trying next...")
+
+if not image_bytes:
+    raise Exception("All image generation models failed to return image data.")
+
 image_path = "temp_tip_image.png"
-
-img = Image.open(BytesIO(image_bytes))
+img = Image.open(BytesIO(image_bytes)).convert("RGB")
 img.save(image_path)
-print("Tip background image successfully generated and saved!")
+print("Tip background image successfully saved!")
 
 # 4. Format Social Media Caption Text
 post_header = make_bold(header_tag)
