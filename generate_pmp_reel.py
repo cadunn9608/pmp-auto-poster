@@ -1,79 +1,141 @@
+import os
+import json
+import time
+import subprocess
+import random
+import requests
+from google import genai
+from gtts import gTTS
+from PIL import Image
+from io import BytesIO
+
 # ==============================================================================
-# STEP 2: GEMINI GENERATES PMP CONTENT (WITH ROBUST MODEL FALLBACK)
+# CONFIGURATION & ABSOLUTE PATH SETUP
+# ==============================================================================
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+FB_PAGE_ID = os.environ.get("FB_PAGE_ID")
+FB_ACCESS_TOKEN = os.environ.get("FB_ACCESS_TOKEN")
+
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+GENERATED_IMAGE = os.path.join(ROOT_DIR, "host_character.png")
+VOICE_AUDIO = os.path.join(ROOT_DIR, "speech.mp3")
+FINAL_REEL = os.path.join(ROOT_DIR, "daily_pmp_reel.mp4")
+
+# ==============================================================================
+# STEP 1: RANDOMIZED PMBOK TOPIC POOL (COMPLETE COVERAGE)
+# ==============================================================================
+pmp_reel_topics = [
+    "agile team facilitation, servant leadership, and servant-leader mindset",
+    "risk management, response strategies, and quantitative/qualitative risk analysis",
+    "stakeholder engagement, communication planning, and managing expectations",
+    "earned value management (EVM), schedule variance (SV), and cost variance (CV)",
+    "change control procedures, integrated change control, and scope baseline management",
+    "resource management, team charter, conflict resolution, and performance appraisals",
+    "procurement management, contract types (fixed-price vs cost-reimbursable), and vendor selection",
+    "quality management, cost of quality, process improvements, and quality control metrics",
+    "agile ceremonies, backlog refinement, sprint planning, and velocity tracking",
+    "project governance, compliance, benefits realization, and business value delivery",
+    "project charter, assumption logs, and stakeholder registers",
+    "schedule network analysis, critical path method, and lead/lag tactics"
+]
+
+# ==============================================================================
+# STEP 2: 20 DIVERSE CHARACTER & SETTING COMBINATIONS (PETEY FEATURED IN A FEW)
+# ==============================================================================
+character_settings_pool = [
+    # 1. Andrew alone (Office)
+    "Andrew the golden retriever wearing a tiny project management hard hat and holding a clipboard inside a modern sunlit tech startup open-office",
+    # 2. Andrew & Petey together (Treehouse)
+    "Andrew the golden retriever puppy collaborating with Petey, a clever white-and-black pit bull mix with a black patch over his left eye, inside a cozy rustic wooden treehouse study room",
+    # 3. Solo character 1 (Sci-Fi Command Center)
+    "a charismatic 3D animated ginger cat wearing a sleek headset inside a futuristic sci-fi command center with glowing holographic project schedules",
+    # 4. Solo character 2 (Beachside Patio)
+    "an enthusiastic 3D animated golden retriever puppy wearing tropical sunglasses on a bright beachside patio overlooking the ocean",
+    # 5. Andrew & Petey together (Workshop)
+    "Andrew the golden retriever reviewing agile boards alongside Petey, an energetic white-and-black pit bull mix with a unique black patch over his left eye, in a vintage tech workshop",
+    # 6. Solo character 3 (University Lecture Hall)
+    "a smart 3D animated border collie wearing professor glasses in a sunlit university lecture hall with tiered wooden desks",
+    # 7. Solo character 4 (Project War Room)
+    "a focused 3D animated silver fox wearing a sharp business suit inside a high-tech project management war room featuring digital Gantt charts",
+    # 8. Solo character 5 (Silicon Valley Incubator)
+    "an energetic 3D animated brown bear wearing a hoodie inside a sleek Silicon Valley incubator space with exposed brick walls",
+    # 9. Andrew & Petey together (Modern Conference Room)
+    "Andrew the golden retriever and Petey, a white-and-black pit bull mix with a black patch over his left eye, brainstorming around a glass conference table with sticky notes",
+    # 10. Solo character 6 (Cozy Library)
+    "a wise old 3D animated owl wearing a graduation cap sitting inside a cozy wood-paneled library surrounded by PMBOK guide books",
+    # 11. Solo character 7 (Agile Scrum Board Room)
+    "an ambitious 3D animated red panda pointing at a colorful Kanban agile board covered in sticky notes",
+    # 12. Solo character 8 (Executive Boardroom)
+    "a professional 3D animated beagle wearing a navy blue blazer inside a high-rise corporate executive boardroom",
+    # 13. Solo character 9 (Data Analytics Lab)
+    "a tech-savvy 3D animated squirrel typing furiously on multiple monitors inside a sleek data analytics laboratory",
+    # 14. Solo character 10 (Outdoor Campfire Strategy Session)
+    "an adventurous 3D animated husky puppy reviewing project milestones next to a warm campfire under a starry night sky",
+    # 15. Andrew alone (Modern Studio)
+    "Andrew the golden retriever puppy holding a colorful Gantt chart in a minimalist Pixar-style digital design studio with vibrant lighting",
+    # 16. Solo character 11 (Construction Site Trailer)
+    "a tough 3D animated bulldog wearing a high-visibility safety vest inside a project site management trailer",
+    # 17. Solo character 12 (Creative Agency Loft)
+    "a trendy 3D animated otter wearing stylish round glasses inside a sunlit creative agency loft with indoor plants",
+    # 18. Solo character 13 (Financial District Balcony)
+    "a sharp 3D animated rabbit wearing a pinstripe vest standing on a glass balcony overlooking a bustling financial district",
+    # 19. Solo character 14 (Innovation Hub)
+    "a cheerful 3D animated kangaroo holding architectural blueprints inside a futuristic glass innovation hub",
+    # 20. Solo character 15 (Solar-powered Greenhouse Studio)
+    "an eco-friendly 3D animated koala managing sustainability project metrics inside a sunlit glass greenhouse studio"
+]
+
+# ==============================================================================
+# STEP 3: GEMINI GENERATES PMP CONTENT (WITH ROBUST MODEL FALLBACK)
 # ==============================================================================
 def get_daily_pmp_content():
-    print("2️⃣ Fetching PMP question and expressive script from Gemini...")
+    print("1️⃣ Fetching diverse PMP question and expressive script from Gemini...")
     client = genai.Client(api_key=GEMINI_API_KEY)
     
-    prompt = """
-    Generate a PMP exam situational question and a lively, highly expressive spoken script for a charismatic 3D animated dog host.
-    Use exclamation points, question marks, and natural pauses (using ellipses) so the speech engine sounds dynamic and engaging.
-    Output strictly as a valid JSON object with the following keys:
-    {
-        "topic": "Risk Management",
-        "question": "A project team discovers a new risk that could delay the project by two weeks...",
-        "option_a": "A) Update the risk register",
-        "option_b": "B) Crash the schedule immediately",
-        "option_c": "C) Inform the sponsor first",
-        "option_d": "D) Perform qualitative risk analysis",
-        "correct_answer": "A) Update the risk register",
-        "explanation": "The first step when identifying a new risk is to document it in the risk register.",
-        "spoken_script": "Alright PMP hopefuls, here is a tricky one! A new risk is discovered that might cause a two-week delay. What is the immediate first action you must take? Option A... update the risk register. Option B... crash the schedule. Option C... inform the sponsor. Or Option D... perform qualitative risk analysis. Think like a Project Manager!"
-    }
-    """
+    selected_topic = random.choice(pmp_reel_topics)
     
-    # --- SYNCHRONIZED ROBUST FALLBACK LIST ---
-    # This is the same list used in your static tip script
+    prompt = (
+        f"Create a rigorous, situational PMP exam practice question specifically focused on: {selected_topic}, "
+        "alongside a lively, highly expressive spoken script for the 3D animated animal host to present in a short-form video. "
+        "Use exclamation points, question marks, and natural pauses (using ellipses) in the spoken script so the voice engine sounds dynamic and engaging. "
+        "Output strictly as a valid JSON object with the following keys:\n"
+        "{\n"
+        f'    "topic": "{selected_topic}",\n'
+        '    "question": "A situational PMP question description...",\n'
+        '    "option_a": "A) First option text",\n'
+        '    "option_b": "B) Second option text",\n'
+        '    "option_c": "C) Third option text",\n'
+        '    "option_d": "D) Fourth option text",\n'
+        '    "correct_answer": "B) Second option text",\n'
+        '    "explanation": "Concise PMP mindset explanation...",\n'
+        '    "spoken_script": "Hey team! Are you ready for today\'s PMP challenge? Listen closely... [Question introduction]? Is it Option A... [detail]? Option B... [detail]? Think carefully!"\n'
+        "}"
+    )
+    
     models_to_try = [
-        "gemini-3.5-flash",       # Top priority (when available)
-        "gemini-3.1-flash",       # Recent stable flash
-        "gemini-1.5-flash",       # Dependable 1.5 flash
-        "gemini-3-flash-preview", # Latest preview
-        "gemini-3.6-flash",       # Newest version
-        "gemini-1.5-pro",         # Pro fallback (higher capacity, sometimes slower)
-        "gemini-3.1-flash-lite"   # Absolute last resort
+        "gemini-3.5-flash",
+        "gemini-3.1-flash",
+        "gemini-1.5-flash",
+        "gemini-3-flash-preview",
+        "gemini-3.6-flash",
+        "gemini-1.5-pro",
+        "gemini-3.1-flash-lite"
     ]
     
     last_exception = None
-    
-    # --- SYNCHRONIZED EXPONENTIAL BACKOFF RETRY LOGIC ---
-    # Try the whole list up to 3 times
     for attempt in range(1, 4):
         print(f"--- Starting content generation attempt {attempt}/3 ---")
         for model_name in models_to_try:
             try:
-                print(f"Attempting generation with model: {model_name}...")
+                print(f"Attempting content generation with {model_name}...")
                 response = client.models.generate_content(
                     model=model_name,
                     contents=prompt,
                     config={"response_mime_type": "application/json"}
                 )
-                
                 raw_text = response.text.strip()
-                # Robust JSON cleaning
                 if "```json" in raw_text:
                     raw_text = raw_text.split("```json")[1].split("```")[0]
                 elif "```" in raw_text:
-                    raw_text = raw_text.split("```")[1].split("```")[0]
-                
-                return json.loads(raw_text.strip()) # Success!
-                
-            except Exception as e:
-                last_exception = e
-                print(f"⚠️ Model {model_name} failed: {e}")
-                
-                # If it's a 503 (Overloaded), wait 10s before trying the NEXT model
-                if "503" in str(e):
-                    print("Server overloaded (503). Pausing briefly before next model...")
-                    time.sleep(10)
-                    
-                continue # Continue to the next model in the list
-        
-        # If we completed the full model list and still haven't succeeded,
-        # wait significantly longer before starting the next retry attempt (Attempt 2 or 3)
-        wait_time = attempt * 15 # Wait 15s, then 30s, then 45s
-        print(f"All models failed on attempt {attempt}. Waiting {wait_time} seconds before retrying the list...")
-        time.sleep(wait_time)
-            
-    # If all models fail across all attempts, raise the last error
-    raise Exception(f"All models and retries failed. Final error: {last_exception}")
+                    raw_text = raw_text.split("
