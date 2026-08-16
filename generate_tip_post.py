@@ -57,7 +57,7 @@ animals_pool = [
     "a joyful golden retriever puppy and a curious red panda",
     "a golden retriever puppy and a clever baby elephant wearing tiny glasses",
     "a cute golden retriever puppy and a friendly capybara",
-    "a cheerful golden retriever puppy and an energetic fox kit"
+    "a cheerful golden retriever puppy and an energetic fox kit",
     "a happy golden retriever puppy and a curious gecko",
     "a golden retriever and a bunny rabbit",
     "a senior golden retriever and a american bulldog mix puppy"
@@ -68,7 +68,7 @@ settings_pool = [
     "a cozy rustic wooden treehouse study room surrounded by green forest canopy views",
     "a futuristic sci-fi command center with glowing holographic project schedules",
     "a bright beachside patio overlooking the ocean with tropical plants and sunny skies",
-    "a vintage artisan workshop filled with creative blueprints, tools, and warm lighting"
+    "a vintage artisan workshop filled with creative blueprints, tools, and warm lighting",
     "a vintage tech workshop filled with gadgets, tools, and warm lighting",
     "a modern tech startup conference room",
     "a college library study table"
