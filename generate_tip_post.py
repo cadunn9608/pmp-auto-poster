@@ -113,40 +113,28 @@ if not image_bytes:
 
 image_path = "temp_tip_image.png"
 
-# 4. Process Image & Perfectly Format Text Overlay with Forced Line Break
+# 4. Process Image & Render Compact, Perfectly Positioned Text Box Overlay
 img = Image.open(BytesIO(image_bytes)).convert("RGBA")
 img_width, img_height = img.size
 
 try:
-    font = ImageFont.truetype("DejaVuSans.ttf", 20)
-    header_font = ImageFont.truetype("DejaVuSans-Bold.ttf", 24)
+    font = ImageFont.truetype("DejaVuSans.ttf", 18)
+    header_font = ImageFont.truetype("DejaVuSans-Bold.ttf", 22)
 except IOError:
     font = ImageFont.load_default()
     header_font = font
 
-# Parse tip text to put topic heading cleanly on its own line if it contains a colon
-formatted_tip_text = ai_tip_raw
-if ":" in ai_tip_raw and not ai_tip_raw.startswith("http"):
-    parts = ai_tip_raw.split(":", 1)
-    prefix = parts[0].strip() + ":"
-    body = parts[1].strip()
-    wrapped_body = textwrap.fill(body, width=72)
-    final_text_block = f"{prefix}\n{wrapped_body}"
-else:
-    final_text_block = textwrap.fill(ai_tip_raw, width=72)
+# Clean text formatting: break up long text into neat wrapped lines
+wrapped_lines = []
+for paragraph in ai_tip_raw.split("\n"):
+    if paragraph.strip():
+        wrapped_lines.extend(textwrap.wrap(paragraph.strip(), width=78))
 
-# Calculate dynamic box dimensions
-dummy_draw = ImageDraw.Draw(img)
-_, _, _, text_bbox_height = dummy_draw.multiline_textbbox((0, 0), final_text_block, font=font, spacing=6)
-
-box_padding = 25
-header_space = 35
-computed_box_height = text_bbox_height + box_padding * 2 + header_space
-
+# Fixed, elegant layout box anchored cleanly to the bottom
 box_x0 = 40
 box_x1 = img_width - 40
-box_y1 = img_height - 40
-box_y0 = box_y1 - computed_box_height
+box_y0 = 710
+box_y1 = img_height - 35
 
 overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
 draw_overlay = ImageDraw.Draw(overlay)
@@ -164,17 +152,19 @@ img = Image.alpha_composite(img, overlay).convert("RGB")
 draw = ImageDraw.Draw(img)
 
 text_x = box_x0 + 25
-text_y = box_y0 + 20
+text_y = box_y0 + 15
 
 # Draw Header Category
 draw.text((text_x, text_y), header_tag, fill=(250, 204, 21, 255), font=header_font)
-text_y += header_space
+text_y += 30
 
-# Draw Formatted Tip Text with Proper Line Break
-draw.multiline_text((text_x, text_y), final_text_block, fill=(241, 245, 249, 255), font=font, spacing=6)
+# Draw tip lines sequentially with tight line spacing
+for line in wrapped_lines[:7]:  # Cap at 7 lines to guarantee it stays inside the card box perfectly
+    draw.text((text_x, text_y), line, fill=(241, 245, 249, 255), font=font)
+    text_y += 24
 
 img.save(image_path, "PNG")
-print("Tip background image with perfectly structured text overlay successfully generated and saved!")
+print("Tip background image with perfectly proportioned text overlay successfully generated and saved!")
 
 # 5. Format Social Media Caption Text
 post_header = make_bold("💡 DAILY PMP TIP 💡\n\n")
