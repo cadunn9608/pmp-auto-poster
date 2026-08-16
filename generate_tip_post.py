@@ -10,7 +10,7 @@ from google.genai import types
 
 def make_bold(text):
     normal = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-    bold = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵"
+    bold = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜J𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵"
     return text.translate(str.maketrans(normal, bold))
 
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
@@ -77,32 +77,26 @@ settings_pool = [
 selected_animals = random.choice(animals_pool)
 selected_setting = random.choice(settings_pool)
 
-# 3. Generate Image using generate_content (New SDK Standard)
+# 3. Generate Image using Imagen Model
 image_prompt = (
     f"A professional, bright, eye-catching photo showing {selected_animals} inside {selected_setting}. "
     "High quality, vibrant lighting, clean composition suitable for a professional study brand background."
 )
 
 print(f"Generating background image with prompt: {image_prompt}")
-response = client.models.generate_content(
+result = client.models.generate_images(
     model='imagen-3.0-generate-002',
-    contents=image_prompt,
-    config=types.GenerateContentConfig(
-        response_mime_type="image/jpeg"
+    prompt=image_prompt,
+    config=dict(
+        number_of_images=1,
+        output_mime_type="image/jpeg",
+        aspect_ratio="1:1"
     )
 )
 
-# Extract image bytes from response parts
-image_bytes = None
-for part in response.candidates[0].content.parts:
-    if part.inline_data:
-        image_bytes = part.inline_data.data
-        break
-
-if not image_bytes:
-    raise Exception("Failed to extract generated image bytes from response.")
-
+image_bytes = result.generated_images[0].image.image_bytes
 image_path = "temp_tip_image.png"
+
 img = Image.open(BytesIO(image_bytes))
 img.save(image_path)
 print("Tip background image successfully generated and saved!")
