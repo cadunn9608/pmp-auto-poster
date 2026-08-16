@@ -174,8 +174,6 @@ def generate_character_image():
 # ==============================================================================
 async def generate_neural_voice(text):
     print("3️⃣ Generating realistic neural voice track with Edge-TTS...")
-    # 'en-US-ChristopherNeural' is a highly realistic male voice. 
-    # Alternatives: 'en-US-GuyNeural', 'en-US-EricNeural'
     communicate = edge_tts.Communicate(text, "en-US-ChristopherNeural")
     await communicate.save(VOICE_AUDIO)
 
@@ -193,21 +191,24 @@ def get_audio_duration():
 def animate_character_mouth():
     print("4️⃣ Animating character mouth with Wav2Lip (This step takes 20+ mins on CPU)...")
     
-    wav2lip_script = os.path.join(ROOT_DIR, "Wav2Lip", "inference.py")
-    checkpoint = os.path.join(ROOT_DIR, "Wav2Lip", "checkpoints", "wav2lip_gan.pth")
+    wav2lip_dir = os.path.join(ROOT_DIR, "Wav2Lip")
     
-    # Run the Wav2Lip inference script as a subprocess
+    # FIX: Create the missing 'temp' folder that Wav2Lip expects!
+    os.makedirs(os.path.join(wav2lip_dir, "temp"), exist_ok=True)
+    
+    checkpoint = os.path.join(wav2lip_dir, "checkpoints", "wav2lip_gan.pth")
+    
     cmd = [
-        "python", wav2lip_script,
+        "python", "inference.py", 
         "--checkpoint_path", checkpoint,
-        "--face", GENERATED_IMAGE,
+        "--face", GENERATED_IMAGE,  # Absolute paths guarantee it finds the files
         "--audio", VOICE_AUDIO,
         "--outfile", VIDEO_LIPSYNC,
-        "--nosmooth" # Helps prevent crashes on CPU runners
+        "--nosmooth" 
     ]
     
-    # We use check=True so the workflow fails gracefully if the face detector can't find a face
-    subprocess.run(cmd, check=True)
+    # FIX: Run the subprocess directly from inside the Wav2Lip directory
+    subprocess.run(cmd, cwd=wav2lip_dir, check=True)
     print("✅ Wav2Lip animation complete!")
 
 # ==============================================================================
@@ -223,7 +224,6 @@ def render_final_reel(data, audio_duration):
     from moviepy.video.VideoClip import TextClip, ColorClip
     from moviepy.video.compositing.CompositeVideoClip import CompositeVideoClip
 
-    # Load the lip-synced video created by Wav2Lip
     video_clip = VideoFileClip(VIDEO_LIPSYNC).resized((target_w, target_h))
     
     text_area_w = target_w - 100
@@ -305,7 +305,6 @@ if __name__ == "__main__":
     content = get_daily_pmp_content()
     generate_character_image()
     
-    # Run the async Edge-TTS function
     asyncio.run(generate_neural_voice(content["spoken_script"]))
     audio_dur = get_audio_duration()
     
