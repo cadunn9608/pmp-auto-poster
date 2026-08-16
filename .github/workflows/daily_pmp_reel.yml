@@ -35,8 +35,8 @@ jobs:
           pip install "numpy<2.0" "torch<2.6" "torchvision<0.21"
           # 2. Install Hugging Face ecosystem for Stable Diffusion + Accelerate for CPU offloading
           pip install diffusers transformers accelerate Pillow
-          # 3. Install rest of PMP automation requirements
-          pip install gtts moviepy requests
+          # 3. Install PMP automation requirements (INCLUDING GOOGLE-GENAI)
+          pip install gtts moviepy requests google-genai
 
       - name: Run Daily PMP Script (Image Generation & Animation)
         env:
