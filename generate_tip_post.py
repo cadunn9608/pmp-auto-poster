@@ -48,7 +48,7 @@ for model_name in text_models_to_try:
 if not ai_tip_raw:
     raise Exception("All models failed to generate tip content due to high demand.")
 
-header_tag = "💡DAILY PMP TIP💡\n\n"
+header_tag = "★ DAILY PMP TIP ★\n"
 ai_tip_formatted = make_bold(ai_tip_raw)
 
 # 2. Dynamic Randomization Pools for Unique Daily Backgrounds
@@ -77,10 +77,11 @@ settings_pool = [
 selected_animals = random.choice(animals_pool)
 selected_setting = random.choice(settings_pool)
 
-# 3. Generate Image via Gemini Content Generation Model (Bypassing deprecated generate_images)
+# 3. Generate Image Natively via Gemini with Pixar Animation Style explicitly enforced
 image_prompt = (
-    f"A professional, bright, eye-catching photo showing {selected_animals} inside {selected_setting}. "
-    "High quality, vibrant lighting, clean composition suitable for a professional study brand background."
+    f"A high-end 3D animated digital art piece in the distinct visual style of Pixar and Disney, "
+    f"featuring {selected_animals} inside {selected_setting}. "
+    "Vibrant warm lighting, charming expressive characters, polished cinematic digital rendering, perfect composition."
 )
 
 print(f"Generating background image with prompt: {image_prompt}")
@@ -112,41 +113,60 @@ if not image_bytes:
 
 image_path = "temp_tip_image.png"
 
-# 4. Process Image & Draw Overlay Text Box (Matching Image 1 Style)
+# 4. Process Image & Dynamically Size Text Box Overlay
 img = Image.open(BytesIO(image_bytes)).convert("RGBA")
+img_width, img_height = img.size
 
-overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
-draw_overlay = ImageDraw.Draw(overlay)
-
-box_coords = [50, 650, 1030, 1030]
-draw_overlay.rounded_rectangle(box_coords, radius=20, fill=(15, 23, 42, 220), outline=(59, 130, 246, 255), width=4)
-
-img = Image.alpha_composite(img, overlay).convert("RGB")
-draw = ImageDraw.Draw(img)
-
+# Load fonts safely
 try:
-    font = ImageFont.truetype("DejaVuSans-Bold.ttf", 28)
-    header_font = ImageFont.truetype("DejaVuSans-Bold.ttf", 32)
+    font = ImageFont.truetype("DejaVuSans-Bold.ttf", 26)
+    header_font = ImageFont.truetype("DejaVuSans-Bold.ttf", 30)
 except IOError:
     font = ImageFont.load_default()
     header_font = font
 
-text_x = 80
-text_y = 680
+# Wrap text and calculate required dynamic box height
+wrapped_text = textwrap.fill(ai_tip_raw, width=60)
+line_count = len(wrapped_text.splitlines())
+
+# Dynamic box sizing based on line count
+padding_top_bottom = 45
+header_height = 40
+line_height = 36
+computed_box_height = padding_top_bottom + header_height + (line_count * line_height)
+
+box_x0 = 40
+box_x1 = img_width - 40
+box_y1 = img_height - 40
+box_y0 = box_y1 - computed_box_height
+
+overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+draw_overlay = ImageDraw.Draw(overlay)
+
+draw_overlay.rounded_rectangle(
+    [box_x0, box_y0, box_x1, box_y1], 
+    radius=20, 
+    fill=(15, 23, 42, 230), 
+    outline=(59, 130, 246, 255), 
+    width=4
+)
+
+img = Image.alpha_composite(img, overlay).convert("RGB")
+draw = ImageDraw.Draw(img)
+
+text_x = box_x0 + 35
+text_y = box_y0 + 25
 
 draw.text((text_x, text_y), header_tag.replace("\n", ""), fill=(250, 204, 21, 255), font=header_font)
-
-wrapped_text = textwrap.fill(ai_tip_raw, width=65)
-draw.text((text_x, text_y + 50), wrapped_text, fill=(255, 255, 255, 255), font=font, spacing=8)
+draw.text((text_x, text_y + 45), wrapped_text, fill=(255, 255, 255, 255), font=font, spacing=8)
 
 img.save(image_path, "PNG")
-print("Tip background image with text overlay successfully generated and saved!")
+print("Tip background image with dynamic text overlay successfully generated and saved!")
 
 # 5. Format Social Media Caption Text
-post_header = make_bold(header_tag)
+post_header = make_bold("💡 DAILY PMP TIP 💡\n\n")
 capm_link = "https://courses.velociteach.com/online-courses/capm-pta/?ref=nwvmngf&tm_daily_question=0806"
 
-# Rotating CTAs to prevent Facebook from flagging posts as repetitive spam
 capm_ctas = [
     "👇 " + make_bold("NOT QUITE READY FOR THE PMP? BUILD YOUR FOUNDATION FIRST!") + "\n" +
     f"Test your knowledge with Velociteach's full 3-hour CAPM Practice Test for $89:\n{capm_link}",
