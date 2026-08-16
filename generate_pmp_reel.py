@@ -21,7 +21,7 @@ ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 GENERATED_IMAGE = os.path.join(ROOT_DIR, "host_character.png")
 VOICE_AUDIO_MP3 = os.path.join(ROOT_DIR, "speech_original.mp3")
-VOICE_AUDIO_WAV = os.path.join(ROOT_DIR, "speech_90s.wav") # Padded to exact FB max length
+VOICE_AUDIO_WAV = os.path.join(ROOT_DIR, "speech_90s.wav")
 VIDEO_LIPSYNC = os.path.join(ROOT_DIR, "talking_head.mp4")
 FINAL_REEL = os.path.join(ROOT_DIR, "daily_pmp_reel.mp4")
 
@@ -81,7 +81,6 @@ def get_daily_pmp_content():
     
     selected_topic = random.choice(pmp_reel_topics)
     
-    # Prompt updated to ask for a longer, ~150 word script
     prompt = (
         f"Create a rigorous, situational PMP exam practice question specifically focused on: {selected_topic}. "
         "Also write a highly detailed, lively, and expressive spoken script for the 3D animated animal host to read. "
