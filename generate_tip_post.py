@@ -77,7 +77,7 @@ settings_pool = [
 selected_animals = random.choice(animals_pool)
 selected_setting = random.choice(settings_pool)
 
-# 3. Generate Image using generate_content method for Imagen models
+# 3. Generate Image Natively via Gemini Image Model
 image_prompt = (
     f"A professional, bright, eye-catching photo showing {selected_animals} inside {selected_setting}. "
     "High quality, vibrant lighting, clean composition suitable for a professional study brand background."
@@ -86,21 +86,17 @@ image_prompt = (
 print(f"Generating background image with prompt: {image_prompt}")
 
 image_bytes = None
-image_models_to_try = ['imagen-3.0-generate-002', 'imagen-3.0', 'imagen-3.0-generate-001', 'imagen-4.0-generate-001']
+image_models_to_try = ["gemini-3.1-flash-image", "gemini-3.1-flash-image-preview"]
 
 for img_model in image_models_to_try:
     try:
         response = client.models.generate_content(
             model=img_model,
-            contents=image_prompt,
+            contents=[image_prompt]
         )
-        # Extract image bytes from response parts
-        for candidate in response.candidates:
-            for part in candidate.content.parts:
-                if part.inline_data and part.inline_data.data:
-                    image_bytes = part.inline_data.data
-                    break
-            if image_bytes:
+        for part in response.parts:
+            if part.inline_data is not None and part.inline_data.data:
+                image_bytes = part.inline_data.data
                 break
         if image_bytes:
             print(f"Successfully generated background image using model: {img_model}")
@@ -109,10 +105,10 @@ for img_model in image_models_to_try:
         print(f"Image model {img_model} failed: {e}. Trying next...")
 
 if not image_bytes:
-    raise Exception("All image generation models failed to return image data.")
+    raise Exception("All Gemini image models failed to return image data.")
 
 image_path = "temp_tip_image.png"
-img = Image.open(BytesIO(image_bytes))
+img = Image.open(BytesIO(image_bytes)).convert("RGB")
 img.save(image_path)
 print("Tip background image successfully generated and saved!")
 
