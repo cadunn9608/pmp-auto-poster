@@ -124,32 +124,24 @@ if not image_bytes:
 
 image_path = "temp_tip_image.png"
 
-# 4. Process Image & Render Pixel-Perfect Text Box Overlay (Including On-Image CTA)
+# 4. Process Image & Render Pixel-Perfect Text Box Overlay (Tip Only)
 img = Image.open(BytesIO(image_bytes)).convert("RGBA")
 img_width, img_height = img.size
 
 try:
-    font = ImageFont.truetype("DejaVuSans.ttf", 16)
-    header_font = ImageFont.truetype("DejaVuSans-Bold.ttf", 20)
-    cta_font = ImageFont.truetype("DejaVuSans-Bold.ttf", 15)
+    font = ImageFont.truetype("DejaVuSans.ttf", 18)
+    header_font = ImageFont.truetype("DejaVuSans-Bold.ttf", 22)
 except IOError:
     font = ImageFont.load_default()
     header_font = font
-    cta_font = font
 
-box_x0 = 35
-box_x1 = img_width - 35
+box_x0 = 40
+box_x1 = img_width - 40
 max_text_width = (box_x1 - box_x0) - 50
 
-# Combine tip and on-image CTA prompt
-capm_link = "courses.velociteach.com/online-courses/capm-pta"
-cta_text = f"Ready for the exam? Try the 3-hr CAPM Practice Test: {capm_link}"
-full_text_content = f"{cleaned_tip}\n\n{cta_text}"
-
 wrapped_lines = []
-for paragraph in full_text_content.split("\n"):
+for paragraph in cleaned_tip.split("\n"):
     if not paragraph.strip():
-        wrapped_lines.append("")  # preserve blank line spacing
         continue
     words = paragraph.strip().split()
     current_line = ""
@@ -164,12 +156,12 @@ for paragraph in full_text_content.split("\n"):
     if current_line:
         wrapped_lines.append(current_line)
 
-line_height = 22
-header_height = 28
-padding = 18
+line_height = 24
+header_height = 32
+padding = 20
 total_box_height = header_height + (len(wrapped_lines) * line_height) + (padding * 2)
 
-box_y1 = img_height - 25
+box_y1 = img_height - 30
 box_y0 = box_y1 - total_box_height
 
 overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
@@ -178,7 +170,7 @@ draw_overlay = ImageDraw.Draw(overlay)
 draw_overlay.rounded_rectangle(
     [box_x0, box_y0, box_x1, box_y1], 
     radius=16, 
-    fill=(15, 23, 42, 240), 
+    fill=(15, 23, 42, 235), 
     outline=(59, 130, 246, 255), 
     width=3
 )
@@ -187,25 +179,17 @@ img = Image.alpha_composite(img, overlay).convert("RGB")
 draw = ImageDraw.Draw(img)
 
 text_x = box_x0 + 25
-text_y = box_y0 + 14
+text_y = box_y0 + 16
 
 draw.text((text_x, text_y), header_tag, fill=(250, 204, 21, 255), font=header_font)
 text_y += header_height
 
-for i, line in enumerate(wrapped_lines):
-    # Render the CTA line in accent yellow/gold so it stands out clearly
-    is_cta_line = "CAPM Practice Test" in line or "courses.velociteach.com" in line
-    current_font = cta_font if is_cta_line else font
-    text_color = (250, 204, 21, 255) if is_cta_line else (241, 245, 249, 255)
-    
-    if line == "":
-        text_y += 10
-        continue
-    draw.text((text_x, text_y), line, fill=text_color, font=current_font)
+for line in wrapped_lines:
+    draw.text((text_x, text_y), line, fill=(241, 245, 249, 255), font=font)
     text_y += line_height
 
 img.save(image_path, "PNG")
-print("Tip background image with integrated CTA text overlay successfully generated and saved!")
+print("Tip background image with clean text overlay successfully generated and saved!")
 
 # 5. Format Social Media Caption Text
 post_header = make_bold("💡 DAILY PMP TIP 💡\n\n")
