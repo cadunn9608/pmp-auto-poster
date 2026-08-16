@@ -44,8 +44,23 @@ jobs:
 
           client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
+          pmp_question_topics = [
+              "agile team facilitation, servant leadership, and servant-leader mindset",
+              "risk management, response strategies, and quantitative/qualitative risk analysis",
+              "stakeholder engagement, communication planning, and managing expectations",
+              "earned value management (EVM), schedule variance (SV), and cost variance (CV)",
+              "change control procedures, integrated change control, and scope baseline management",
+              "resource management, team charter, conflict resolution, and performance appraisals",
+              "procurement management, contract types (fixed-price vs cost-reimbursable), and vendor selection",
+              "quality management, cost of quality, process improvements, and quality control metrics",
+              "agile ceremonies, backlog refinement, sprint planning, and velocity tracking",
+              "project governance, compliance, benefits realization, and business value delivery"
+          ]
+          selected_question_topic = random.choice(pmp_question_topics)
+
           prompt = (
-              "Create an engaging, high-energy PMP exam practice post optimized for social media featuring EXACTLY ONE (1) rigorous, situational multiple-choice question in the precise style of the actual PMP exam.\n\n"
+              f"Create an engaging, high-energy PMP exam practice post optimized for social media featuring EXACTLY ONE (1) "
+              f"rigorous, situational multiple-choice question in the precise style of the actual PMP exam, specifically focused on: {selected_question_topic}.\n\n"
               "Structure the post using these exact plain text headings without markdown asterisks or emojis:\n"
               "PMP PRACTICE QUESTION OF THE DAY\n"
               "[Insert the single question and options A, B, C, D here]\n\n"
@@ -54,7 +69,8 @@ jobs:
               "THE PMP MINDSET BREAKDOWN:\n"
               "[Provide the concise mindset explanation]"
           )
-          ai_tip_raw = None
+
+          ai_text = None
           models_to_try = [
               "gemini-3.5-flash",
               "gemini-3.1-flash",
