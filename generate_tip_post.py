@@ -48,8 +48,20 @@ for model_name in text_models_to_try:
 if not ai_tip_raw:
     raise Exception("All models failed to generate tip content due to high demand.")
 
+# Aggressively strip any redundant prefixes case-insensitively
+cleaned_tip = ai_tip_raw
+prefixes_to_strip = [
+    "pmp exam tip:", "pmp study tip:", "exam tip:", "study tip:", "tip:",
+    "pmp exam tip", "pmp study tip", "exam tip", "study tip"
+]
+lower_tip = cleaned_tip.lower()
+for p in prefixes_to_strip:
+    if lower_tip.startswith(p):
+        cleaned_tip = cleaned_tip[len(p):].strip()
+        break
+
 header_tag = "★ DAILY PMP TIP ★"
-ai_tip_formatted = make_bold(ai_tip_raw)
+ai_tip_formatted = make_bold(cleaned_tip)
 
 # 2. Dynamic Randomization Pools for Unique Daily Backgrounds
 animals_pool = [
@@ -113,33 +125,31 @@ if not image_bytes:
 
 image_path = "temp_tip_image.png"
 
-# 4. Process Image & Render Compact, Perfectly Positioned Text Box Overlay
+# 4. Process Image & Render Expanded, Properly Sized Text Box Overlay
 img = Image.open(BytesIO(image_bytes)).convert("RGBA")
 img_width, img_height = img.size
 
 try:
-    font = ImageFont.truetype("DejaVuSans.ttf", 18)
-    header_font = ImageFont.truetype("DejaVuSans-Bold.ttf", 22)
+    font = ImageFont.truetype("DejaVuSans.ttf", 20)
+    header_font = ImageFont.truetype("DejaVuSans-Bold.ttf", 24)
 except IOError:
     font = ImageFont.load_default()
     header_font = font
 
-# Clean text formatting: break up long text into neat wrapped lines
 wrapped_lines = []
-for paragraph in ai_tip_raw.split("\n"):
+for paragraph in cleaned_tip.split("\n"):
     if paragraph.strip():
-        wrapped_lines.extend(textwrap.wrap(paragraph.strip(), width=78))
+        wrapped_lines.extend(textwrap.wrap(paragraph.strip(), width=72))
 
-# Fixed, elegant layout box anchored cleanly to the bottom
+# Expanded box height to prevent any text clipping
 box_x0 = 40
 box_x1 = img_width - 40
-box_y0 = 710
-box_y1 = img_height - 35
+box_y0 = 620
+box_y1 = img_height - 30
 
 overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
 draw_overlay = ImageDraw.Draw(overlay)
 
-# Draw Rounded Box Background
 draw_overlay.rounded_rectangle(
     [box_x0, box_y0, box_x1, box_y1], 
     radius=16, 
@@ -151,20 +161,18 @@ draw_overlay.rounded_rectangle(
 img = Image.alpha_composite(img, overlay).convert("RGB")
 draw = ImageDraw.Draw(img)
 
-text_x = box_x0 + 25
-text_y = box_y0 + 15
+text_x = box_x0 + 30
+text_y = box_y0 + 20
 
-# Draw Header Category
 draw.text((text_x, text_y), header_tag, fill=(250, 204, 21, 255), font=header_font)
-text_y += 30
+text_y += 36
 
-# Draw tip lines sequentially with tight line spacing
-for line in wrapped_lines[:7]:  # Cap at 7 lines to guarantee it stays inside the card box perfectly
+for line in wrapped_lines:
     draw.text((text_x, text_y), line, fill=(241, 245, 249, 255), font=font)
-    text_y += 24
+    text_y += 28
 
 img.save(image_path, "PNG")
-print("Tip background image with perfectly proportioned text overlay successfully generated and saved!")
+print("Tip background image with expanded text overlay successfully generated and saved!")
 
 # 5. Format Social Media Caption Text
 post_header = make_bold("💡 DAILY PMP TIP 💡\n\n")
