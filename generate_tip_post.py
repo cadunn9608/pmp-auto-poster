@@ -77,7 +77,7 @@ settings_pool = [
 selected_animals = random.choice(animals_pool)
 selected_setting = random.choice(settings_pool)
 
-# 3. Generate Image using Imagen Model
+# 3. Generate Image via Gemini Content Generation Model (Bypassing deprecated generate_images)
 image_prompt = (
     f"A professional, bright, eye-catching photo showing {selected_animals} inside {selected_setting}. "
     "High quality, vibrant lighting, clean composition suitable for a professional study brand background."
@@ -85,35 +85,45 @@ image_prompt = (
 
 print(f"Generating background image with prompt: {image_prompt}")
 
-image_result = client.models.generate_images(
-    model='imagen-3.0-generate-002',
-    prompt=image_prompt,
-    config=types.GenerateImagesConfig(
-        number_of_images=1,
-        output_mime_type="image/jpeg",
-        aspect_ratio="1:1"
-    )
-)
+image_bytes = None
+image_models_to_try = ["gemini-2.5-flash", "gemini-3.1-flash-image", "gemini-3.1-flash-image-preview"]
 
-generated_image = image_result.generated_images[0]
-image_bytes = generated_image.image.image_bytes
+for img_model in image_models_to_try:
+    try:
+        response = client.models.generate_content(
+            model=img_model,
+            contents=image_prompt,
+        )
+        for candidate in response.candidates:
+            for part in candidate.content.parts:
+                if part.inline_data and part.inline_data.data:
+                    image_bytes = part.inline_data.data
+                    break
+            if image_bytes:
+                break
+        if image_bytes:
+            print(f"Successfully generated background image using model: {img_model}")
+            break
+    except Exception as e:
+        print(f"Image model {img_model} failed: {e}. Trying next...")
+
+if not image_bytes:
+    raise Exception("All Gemini image generation models failed to return image data.")
+
 image_path = "temp_tip_image.png"
 
-# 4. Process Image & Draw Overlay Text Box (Restored)
+# 4. Process Image & Draw Overlay Text Box (Matching Image 1 Style)
 img = Image.open(BytesIO(image_bytes)).convert("RGBA")
 
-# Create a translucent dark overlay box for high readability at the bottom
 overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
 draw_overlay = ImageDraw.Draw(overlay)
 
-box_coords = [50, 650, 1030, 1030]  # [x0, y0, x1, y1] matching layout style
+box_coords = [50, 650, 1030, 1030]
 draw_overlay.rounded_rectangle(box_coords, radius=20, fill=(15, 23, 42, 220), outline=(59, 130, 246, 255), width=4)
 
-# Composite the overlay onto the base image
 img = Image.alpha_composite(img, overlay).convert("RGB")
 draw = ImageDraw.Draw(img)
 
-# Load a clean sans-serif font (falls back to default if custom font file isn't bundled)
 try:
     font = ImageFont.truetype("DejaVuSans-Bold.ttf", 28)
     header_font = ImageFont.truetype("DejaVuSans-Bold.ttf", 32)
@@ -121,7 +131,6 @@ except IOError:
     font = ImageFont.load_default()
     header_font = font
 
-# Draw Header and Tip Text inside the box
 text_x = 80
 text_y = 680
 
