@@ -4,8 +4,9 @@ import time
 import subprocess
 import random
 import requests
+import asyncio
+import edge_tts
 from google import genai
-from gtts import gTTS
 from PIL import Image
 from io import BytesIO
 
@@ -20,6 +21,7 @@ ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 GENERATED_IMAGE = os.path.join(ROOT_DIR, "host_character.png")
 VOICE_AUDIO = os.path.join(ROOT_DIR, "speech.mp3")
+VIDEO_LIPSYNC = os.path.join(ROOT_DIR, "talking_head.mp4")
 FINAL_REEL = os.path.join(ROOT_DIR, "daily_pmp_reel.mp4")
 
 # ==============================================================================
@@ -41,48 +43,28 @@ pmp_reel_topics = [
 ]
 
 # ==============================================================================
-# STEP 2: 20 DIVERSE CHARACTER & SETTING COMBINATIONS (PETEY FEATURED IN A FEW)
+# STEP 2: 20 DIVERSE CHARACTER & SETTING COMBINATIONS
 # ==============================================================================
 character_settings_pool = [
-    # 1. Andrew alone (Office)
     "Andrew the golden retriever wearing a tiny project management hard hat and holding a clipboard inside a modern sunlit tech startup open-office",
-    # 2. Andrew & Petey together (Treehouse)
     "Andrew the golden retriever puppy collaborating with Petey, a clever white-and-black pit bull mix with a black patch over his left eye, inside a cozy rustic wooden treehouse study room",
-    # 3. Solo character 1 (Sci-Fi Command Center)
     "a charismatic 3D animated ginger cat wearing a sleek headset inside a futuristic sci-fi command center with glowing holographic project schedules",
-    # 4. Solo character 2 (Beachside Patio)
     "an enthusiastic 3D animated golden retriever puppy wearing tropical sunglasses on a bright beachside patio overlooking the ocean",
-    # 5. Andrew & Petey together (Workshop)
     "Andrew the golden retriever reviewing agile boards alongside Petey, an energetic white-and-black pit bull mix with a unique black patch over his left eye, in a vintage tech workshop",
-    # 6. Solo character 3 (University Lecture Hall)
     "a smart 3D animated border collie wearing professor glasses in a sunlit university lecture hall with tiered wooden desks",
-    # 7. Solo character 4 (Project War Room)
     "a focused 3D animated silver fox wearing a sharp business suit inside a high-tech project management war room featuring digital Gantt charts",
-    # 8. Solo character 5 (Silicon Valley Incubator)
     "an energetic 3D animated brown bear wearing a hoodie inside a sleek Silicon Valley incubator space with exposed brick walls",
-    # 9. Andrew & Petey together (Modern Conference Room)
     "Andrew the golden retriever and Petey, a white-and-black pit bull mix with a black patch over his left eye, brainstorming around a glass conference table with sticky notes",
-    # 10. Solo character 6 (Cozy Library)
     "a wise old 3D animated owl wearing a graduation cap sitting inside a cozy wood-paneled library surrounded by PMBOK guide books",
-    # 11. Solo character 7 (Agile Scrum Board Room)
     "an ambitious 3D animated red panda pointing at a colorful Kanban agile board covered in sticky notes",
-    # 12. Solo character 8 (Executive Boardroom)
     "a professional 3D animated beagle wearing a navy blue blazer inside a high-rise corporate executive boardroom",
-    # 13. Solo character 9 (Data Analytics Lab)
     "a tech-savvy 3D animated squirrel typing furiously on multiple monitors inside a sleek data analytics laboratory",
-    # 14. Solo character 10 (Outdoor Campfire Strategy Session)
     "an adventurous 3D animated husky puppy reviewing project milestones next to a warm campfire under a starry night sky",
-    # 15. Andrew alone (Modern Studio)
     "Andrew the golden retriever puppy holding a colorful Gantt chart in a minimalist Pixar-style digital design studio with vibrant lighting",
-    # 16. Solo character 11 (Construction Site Trailer)
     "a tough 3D animated bulldog wearing a high-visibility safety vest inside a project site management trailer",
-    # 17. Solo character 12 (Creative Agency Loft)
     "a trendy 3D animated otter wearing stylish round glasses inside a sunlit creative agency loft with indoor plants",
-    # 18. Solo character 13 (Financial District Balcony)
     "a sharp 3D animated rabbit wearing a pinstripe vest standing on a glass balcony overlooking a bustling financial district",
-    # 19. Solo character 14 (Innovation Hub)
     "a cheerful 3D animated kangaroo holding architectural blueprints inside a futuristic glass innovation hub",
-    # 20. Solo character 15 (Solar-powered Greenhouse Studio)
     "an eco-friendly 3D animated koala managing sustainability project metrics inside a sunlit glass greenhouse studio"
 ]
 
@@ -99,6 +81,7 @@ def get_daily_pmp_content():
         f"Create a rigorous, situational PMP exam practice question specifically focused on: {selected_topic}, "
         "alongside a lively, highly expressive spoken script for the 3D animated animal host to present in a short-form video. "
         "Use exclamation points, question marks, and natural pauses (using ellipses) in the spoken script so the voice engine sounds dynamic and engaging. "
+        "IMPORTANT: Do not use any unescaped double quotes inside the string values. "
         "Output strictly as a valid JSON object with the following keys:\n"
         "{\n"
         f'    "topic": "{selected_topic}",\n'
@@ -125,7 +108,6 @@ def get_daily_pmp_content():
     
     last_exception = None
     for attempt in range(1, 4):
-        print(f"--- Starting content generation attempt {attempt}/3 ---")
         for model_name in models_to_try:
             try:
                 print(f"Attempting content generation with {model_name}...")
@@ -142,15 +124,10 @@ def get_daily_pmp_content():
                 return json.loads(raw_text.strip())
             except Exception as e:
                 last_exception = e
-                print(f"⚠️ Model {model_name} failed: {e}")
                 if "503" in str(e):
-                    print("Server overloaded (503). Pausing briefly before next model...")
                     time.sleep(10)
                 continue
-        
-        wait_time = attempt * 15
-        print(f"All models failed on attempt {attempt}. Waiting {wait_time} seconds before retrying...")
-        time.sleep(wait_time)
+        time.sleep(attempt * 15)
             
     raise Exception(f"All models and retries failed. Last error: {last_exception}")
 
@@ -169,27 +146,21 @@ def generate_character_image():
         "facing the camera directly, talking and expressive, vibrant studio lighting, polished cinematic digital rendering, perfect vertical mobile composition."
     )
     
-    image_models_to_try = ["gemini-2.5-flash", "gemini-3.1-flash-image", "gemini-3.1-flash-image-preview"]
+    image_models_to_try = ["gemini-3.1-flash-image", "gemini-3.1-flash-image-preview", "gemini-1.5-pro"]
     image_bytes = None
     
     for img_model in image_models_to_try:
         try:
-            response = client.models.generate_content(
-                model=img_model,
-                contents=image_prompt,
-            )
+            response = client.models.generate_content(model=img_model, contents=image_prompt)
             for candidate in response.candidates:
                 for part in candidate.content.parts:
                     if part.inline_data and part.inline_data.data:
                         image_bytes = part.inline_data.data
                         break
-                if image_bytes:
-                    break
-            if image_bytes:
-                print(f"Successfully generated character image using model: {img_model}")
-                break
-        except Exception as e:
-            print(f"Image model {img_model} failed: {e}. Trying next...")
+                if image_bytes: break
+            if image_bytes: break
+        except Exception:
+            continue
             
     if not image_bytes:
         raise Exception("All Gemini image generation models failed.")
@@ -199,13 +170,16 @@ def generate_character_image():
     print("Character image successfully saved!")
 
 # ==============================================================================
-# STEP 5: EXPRESSIVE VOICE GENERATION (gTTS)
+# STEP 5: REALISTIC NEURAL VOICE GENERATION (EDGE-TTS)
 # ==============================================================================
-def generate_voiceover(text):
-    print("3️⃣ Generating expressive audio track with gTTS...")
-    tts = gTTS(text=text, lang='en', tld='com', slow=False)
-    tts.save(VOICE_AUDIO)
-    
+async def generate_neural_voice(text):
+    print("3️⃣ Generating realistic neural voice track with Edge-TTS...")
+    # 'en-US-ChristopherNeural' is a highly realistic male voice. 
+    # Alternatives: 'en-US-GuyNeural', 'en-US-EricNeural'
+    communicate = edge_tts.Communicate(text, "en-US-ChristopherNeural")
+    await communicate.save(VOICE_AUDIO)
+
+def get_audio_duration():
     cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", VOICE_AUDIO]
     result = subprocess.run(cmd, capture_output=True, text=True)
     try:
@@ -214,21 +188,43 @@ def generate_voiceover(text):
         return 45.0
 
 # ==============================================================================
-# STEP 6: RENDER TALKING REEL (STATIC PORTRAIT + AUDIO + TEXT OVERLAYS)
+# STEP 6: ANIMATE MOUTH WITH WAV2LIP
+# ==============================================================================
+def animate_character_mouth():
+    print("4️⃣ Animating character mouth with Wav2Lip (This step takes 20+ mins on CPU)...")
+    
+    wav2lip_script = os.path.join(ROOT_DIR, "Wav2Lip", "inference.py")
+    checkpoint = os.path.join(ROOT_DIR, "Wav2Lip", "checkpoints", "wav2lip_gan.pth")
+    
+    # Run the Wav2Lip inference script as a subprocess
+    cmd = [
+        "python", wav2lip_script,
+        "--checkpoint_path", checkpoint,
+        "--face", GENERATED_IMAGE,
+        "--audio", VOICE_AUDIO,
+        "--outfile", VIDEO_LIPSYNC,
+        "--nosmooth" # Helps prevent crashes on CPU runners
+    ]
+    
+    # We use check=True so the workflow fails gracefully if the face detector can't find a face
+    subprocess.run(cmd, check=True)
+    print("✅ Wav2Lip animation complete!")
+
+# ==============================================================================
+# STEP 7: RENDER TALKING REEL (OVERLAY TEXT TILES)
 # ==============================================================================
 def render_final_reel(data, audio_duration):
-    print("5️⃣ Assembling talking character Reel...")
+    print("5️⃣ Assembling talking character Reel with text...")
     
     switch_time = audio_duration / 2.0 
     target_w, target_h = 1080, 1920
 
-    from moviepy.video.VideoClip import TextClip, ColorClip, ImageClip
+    from moviepy.video.io.VideoFileClip import VideoFileClip
+    from moviepy.video.VideoClip import TextClip, ColorClip
     from moviepy.video.compositing.CompositeVideoClip import CompositeVideoClip
-    from moviepy.audio.io.AudioFileClip import AudioFileClip
 
-    image_clip = ImageClip(GENERATED_IMAGE).with_duration(audio_duration + 1.0).resize(newsize=(target_w, target_h))
-    audio_clip = AudioFileClip(VOICE_AUDIO)
-    video_with_audio = image_clip.with_audio(audio_clip)
+    # Load the lip-synced video created by Wav2Lip
+    video_clip = VideoFileClip(VIDEO_LIPSYNC).resized((target_w, target_h))
     
     text_area_w = target_w - 100
     text_area_h = 700
@@ -267,7 +263,7 @@ def render_final_reel(data, audio_duration):
     
     a_box = ColorClip(size=(text_area_w, text_area_h + 50), color=(15, 23, 42)).with_opacity(0.85).with_position(('center', 80)).with_start(switch_time).with_duration(audio_duration - switch_time + 1.0)
 
-    final = CompositeVideoClip([video_with_audio, q_box, q_text_clip, a_box, a_text_clip])
+    final = CompositeVideoClip([video_clip, q_box, q_text_clip, a_box, a_text_clip])
     
     print("Writing final video file...")
     try:
@@ -280,13 +276,11 @@ def render_final_reel(data, audio_duration):
         )
         print("✅ Final talking character Reel exported!")
     finally:
-        image_clip.close()
-        video_with_audio.close()
-        audio_clip.close()
+        video_clip.close()
         final.close()
 
 # ==============================================================================
-# STEP 7: PUBLISH TO FACEBOOK
+# STEP 8: PUBLISH TO FACEBOOK
 # ==============================================================================
 def publish_to_facebook():
     print("6️⃣ Uploading Reel to Facebook Page...")
@@ -310,7 +304,12 @@ def publish_to_facebook():
 if __name__ == "__main__":
     content = get_daily_pmp_content()
     generate_character_image()
-    audio_dur = generate_voiceover(content["spoken_script"])
+    
+    # Run the async Edge-TTS function
+    asyncio.run(generate_neural_voice(content["spoken_script"]))
+    audio_dur = get_audio_duration()
+    
+    animate_character_mouth()
     render_final_reel(content, audio_dur)
     
     if FB_PAGE_ID and FB_ACCESS_TOKEN:
