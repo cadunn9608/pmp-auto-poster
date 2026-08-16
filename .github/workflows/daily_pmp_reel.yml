@@ -1,4 +1,4 @@
-name: Daily PMP Reel Automation (100% Free)
+name: Daily PMP Reel Automation (Image-to-Video)
 
 on:
   schedule:
@@ -8,6 +8,8 @@ on:
 jobs:
   generate-reel:
     runs-on: ubuntu-latest
+    # Set timeout to 3 hours (180 minutes). Image generation and CPU video processing are slow.
+    timeout-minutes: 180
     
     steps:
       - name: Checkout Repository
@@ -18,42 +20,42 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install System Dependencies (FFmpeg & ImageMagick)
+      - name: Install System Dependencies (FFmpeg)
         run: |
           export DEBIAN_FRONTEND=noninteractive
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg imagemagick
-          sudo sed -i 's/none/read,write/g' /etc/ImageMagick-6/policy.xml || true
+          sudo apt-get install -y -qq ffmpeg
+          # Verify installation
+          ffmpeg -version
 
-      - name: Clone Wav2Lip & Download Weights
-        run: |
-          rm -rf Wav2Lip
-          git clone https://github.com/justinjohn0306/Wav2Lip.git Wav2Lip
-          mkdir -p Wav2Lip/checkpoints
-          
-          # 1. Download main Wav2Lip GAN checkpoint
-          curl -fL "https://huggingface.co/Nekochu/Wav2Lip/resolve/main/wav2lip_gan.pth" -o "Wav2Lip/checkpoints/wav2lip_gan.pth"
-          
-          # 2. Download face detector weights directly from official GitHub release
-          curl -fL "https://github.com/justinjohn0306/Wav2Lip/releases/download/models/mobilenet.pth" -o "Wav2Lip/checkpoints/mobilenet.pth"
-
-      - name: Install Python Dependencies
+      - name: Install Python Dependencies (Heavy ML Libraries)
         run: |
           python -m pip install --upgrade pip
-          pip install "torch<2.6" "torchvision<0.21" gtts moviepy requests librosa opencv-python batch_face google-genai
+          # 1. Install core numerical and deep learning libraries (restricted versions for CPU stability)
+          pip install "numpy<2.0" "torch<2.6" "torchvision<0.21"
+          # 2. Install Hugging Face ecosystem for Stable Diffusion + Accelerate for CPU offloading
+          pip install diffusers transformers accelerate Pillow
+          # 3. Install rest of PMP automation requirements
+          pip install gtts moviepy requests
 
-      - name: Run Daily PMP Script
+      - name: Run Daily PMP Script (Image Generation & Animation)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }} # Required for StableDiffusionPipeline
           FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
           FB_ACCESS_TOKEN: ${{ secrets.FB_ACCESS_TOKEN }}
-          TORCH_FORCE_WEIGHTS_ONLY_LOAD: "0"
+          # Optimization: Force PyTorch to use CPU and manage threads efficiently
+          CUDA_VISIBLE_DEVICES: ""
+          OMP_NUM_THREADS: "4" # Utilize available cores without overloading
         run: |
+          echo "Starting PMP Reel Generation at $(date -u +%H:%M:%S)"
           python generate_pmp_reel.py
+          echo "Finished PMP Reel Generation at $(date -u +%H:%M:%S)"
 
       - name: Upload Generated Reel Artifact
+        if: always() # Upload even if generation fails for debugging purposes
         uses: actions/upload-artifact@v4
         with:
           name: daily-pmp-reel
-          path: daily_pmp_reel.mp4
+          path: daily_pmp_reel.mp4 
           retention-days: 7
