@@ -77,7 +77,7 @@ settings_pool = [
 selected_animals = random.choice(animals_pool)
 selected_setting = random.choice(settings_pool)
 
-# 3. Generate Image using client.models.generate_images correctly
+# 3. Generate Image using the Corrected Imagen Model ID
 image_prompt = (
     f"A professional, bright, eye-catching photo showing {selected_animals} inside {selected_setting}. "
     "High quality, vibrant lighting, clean composition suitable for a professional study brand background."
@@ -85,7 +85,7 @@ image_prompt = (
 
 print(f"Generating background image with prompt: {image_prompt}")
 result = client.models.generate_images(
-    model='imagen-3.0-generate-002',
+    model='imagen-3.0-generate-001',
     prompt=image_prompt,
     config=types.GenerateImagesConfig(
         number_of_images=1,
