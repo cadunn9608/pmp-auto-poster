@@ -113,27 +113,36 @@ if not image_bytes:
 
 image_path = "temp_tip_image.png"
 
-# 4. Process Image & Dynamically Size Text Box Overlay
+# 4. Process Image & Perfectly Fit Text Box Overlay
 img = Image.open(BytesIO(image_bytes)).convert("RGBA")
 img_width, img_height = img.size
 
 # Load fonts safely
 try:
-    font = ImageFont.truetype("DejaVuSans-Bold.ttf", 26)
-    header_font = ImageFont.truetype("DejaVuSans-Bold.ttf", 30)
+    font = ImageFont.truetype("DejaVuSans.ttf", 22)
+    header_font = ImageFont.truetype("DejaVuSans-Bold.ttf", 26)
 except IOError:
     font = ImageFont.load_default()
     header_font = font
 
-# Wrap text and calculate required dynamic box height
-wrapped_text = textwrap.fill(ai_tip_raw, width=60)
-line_count = len(wrapped_text.splitlines())
+# Wrap tip text cleanly
+wrapped_text = textwrap.fill(ai_tip_raw, width=70)
+lines = wrapped_text.splitlines()
 
-# Dynamic box sizing based on line count
-padding_top_bottom = 45
-header_height = 40
-line_height = 36
-computed_box_height = padding_top_bottom + header_height + (line_count * line_height)
+# Separate potential title/topic prefix if present in ai_tip_raw for formatting line break
+if ":" in lines[0] and len(lines[0].split(":")[0]) < 35:
+    title_part = lines[0]
+    body_lines = lines[1:]
+else:
+    title_part = None
+    body_lines = lines
+
+# Calculate exact height needed based on line count + title break
+total_lines = len(body_lines) + (1 if title_part else 0)
+padding_top_bottom = 35
+header_height = 35
+line_height = 30
+computed_box_height = padding_top_bottom + header_height + (total_lines * line_height)
 
 box_x0 = 40
 box_x1 = img_width - 40
@@ -145,23 +154,35 @@ draw_overlay = ImageDraw.Draw(overlay)
 
 draw_overlay.rounded_rectangle(
     [box_x0, box_y0, box_x1, box_y1], 
-    radius=20, 
-    fill=(15, 23, 42, 230), 
+    radius=16, 
+    fill=(15, 23, 42, 235), 
     outline=(59, 130, 246, 255), 
-    width=4
+    width=3
 )
 
 img = Image.alpha_composite(img, overlay).convert("RGB")
 draw = ImageDraw.Draw(img)
 
-text_x = box_x0 + 35
-text_y = box_y0 + 25
+text_x = box_x0 + 25
+text_y = box_y0 + 20
 
+# Draw Category Title
 draw.text((text_x, text_y), header_tag.replace("\n", ""), fill=(250, 204, 21, 255), font=header_font)
-draw.text((text_x, text_y + 45), wrapped_text, fill=(255, 255, 255, 255), font=font, spacing=8)
+text_y += 38
+
+# Draw Topic Heading with line break if detected
+current_y_offset = text_y
+if title_part:
+    draw.text((text_x, current_y_offset), title_part, fill=(255, 255, 255, 255), font=header_font)
+    current_y_offset += 36
+
+# Draw remaining wrapped body text lines
+for line in body_lines:
+    draw.text((text_x, current_y_offset), line, fill=(241, 245, 249, 255), font=font)
+    current_y_offset += line_height
 
 img.save(image_path, "PNG")
-print("Tip background image with dynamic text overlay successfully generated and saved!")
+print("Tip background image with perfectly fitted text overlay successfully generated and saved!")
 
 # 5. Format Social Media Caption Text
 post_header = make_bold("💡 DAILY PMP TIP 💡\n\n")
