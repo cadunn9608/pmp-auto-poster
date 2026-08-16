@@ -1,15 +1,14 @@
-name: Daily PMP Reel Automation (Image-to-Video)
+name: Daily PMP Reel Automation (Wav2Lip Edition)
 
 on:
   schedule:
-    - cron: '0 12 * * *'  # Runs automatically every day at 12:00 PM UTC
-  workflow_dispatch:       # Allows manual trigger from GitHub Actions tab
+    - cron: '0 12 * * *'
+  workflow_dispatch:
 
 jobs:
   generate-reel:
     runs-on: ubuntu-latest
-    # Set timeout to 3 hours (180 minutes). Image generation and CPU video processing are slow.
-    timeout-minutes: 180
+    timeout-minutes: 180 # Extended timeout for CPU lip-syncing
     
     steps:
       - name: Checkout Repository
@@ -20,42 +19,38 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install System Dependencies (FFmpeg)
+      - name: Install System Dependencies
         run: |
           export DEBIAN_FRONTEND=noninteractive
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg
-          # Verify installation
-          ffmpeg -version
+          sudo apt-get install -y -qq ffmpeg imagemagick fonts-liberation
+          # Fix ImageMagick security policy for MoviePy text rendering
+          sudo sed -i 's/rights="none" pattern="@\*"/rights="read|write" pattern="@\*"/' /etc/ImageMagick-6/policy.xml
 
-      - name: Install Python Dependencies (Heavy ML Libraries)
+      - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip
-          # 1. Install core numerical and deep learning libraries (restricted versions for CPU stability)
-          pip install "numpy<2.0" "torch<2.6" "torchvision<0.21"
-          # 2. Install Hugging Face ecosystem for Stable Diffusion + Accelerate for CPU offloading
-          pip install diffusers transformers accelerate Pillow
-          # 3. Install PMP automation requirements (INCLUDING GOOGLE-GENAI)
-          pip install gtts moviepy requests google-genai
+          # Install CPU versions of PyTorch to save space and avoid GPU driver issues
+          pip install "torch<2.6" "torchvision<0.21" torchaudio --index-url https://download.pytorch.org/whl/cpu
+          # Install audio/video processing and generation libraries
+          pip install edge-tts moviepy requests google-genai pillow librosa==0.9.2 scipy opencv-python tqdm numba
 
-      - name: Run Daily PMP Script (Image Generation & Animation)
+      - name: Setup Wav2Lip
+        run: |
+          # Clone the Wav2Lip repository directly into the runner
+          git clone https://github.com/Rudrabha/Wav2Lip.git
+          cd Wav2Lip
+          # Download the face detection model
+          mkdir -p face_detection/detection/sfd
+          wget "https://www.adrianbulat.com/downloads/python-fan/s3fd-619a316812.pth" -O face_detection/detection/sfd/s3fd.pth
+          # Download the Wav2Lip GAN model (via Hugging Face mirror)
+          mkdir -p checkpoints
+          wget "https://huggingface.co/camenduru/Wav2Lip/resolve/main/checkpoints/wav2lip_gan.pth" -O checkpoints/wav2lip_gan.pth
+
+      - name: Run Daily PMP Script
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }} # Required for StableDiffusionPipeline
           FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
           FB_ACCESS_TOKEN: ${{ secrets.FB_ACCESS_TOKEN }}
-          # Optimization: Force PyTorch to use CPU and manage threads efficiently
-          CUDA_VISIBLE_DEVICES: ""
-          OMP_NUM_THREADS: "4" # Utilize available cores without overloading
         run: |
-          echo "Starting PMP Reel Generation at $(date -u +%H:%M:%S)"
           python generate_pmp_reel.py
-          echo "Finished PMP Reel Generation at $(date -u +%H:%M:%S)"
-
-      - name: Upload Generated Reel Artifact
-        if: always() # Upload even if generation fails for debugging purposes
-        uses: actions/upload-artifact@v4
-        with:
-          name: daily-pmp-reel
-          path: daily_pmp_reel.mp4 
-          retention-days: 7
