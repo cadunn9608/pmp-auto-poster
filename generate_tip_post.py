@@ -15,10 +15,10 @@ def make_bold(text):
 
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
-# 1. Generate the Daily PMP Tip Text with model fallbacks
+# 1. Generate a concise Daily PMP Tip Text optimized for image overlays
 tip_prompt = (
-    "Create a short, punchy, high-value daily PMP exam study tip optimized for social media. "
-    "Focus on a core project management principle, formula, or agile/predictive mindset concept. "
+    "Create a very short, punchy, high-value daily PMP exam study tip (maximum 3 to 4 short sentences total). "
+    "Focus on a core project management principle or mindset rule. "
     "Output only the tip content without any Markdown formatting or emojis."
 )
 
@@ -125,33 +125,27 @@ if not image_bytes:
 
 image_path = "temp_tip_image.png"
 
-# 4. Process Image & Render Dynamically Sized Text Box Overlay
+# 4. Process Image & Render Full-Width Text Box Overlay
 img = Image.open(BytesIO(image_bytes)).convert("RGBA")
 img_width, img_height = img.size
 
 try:
-    font = ImageFont.truetype("DejaVuSans.ttf", 17)
-    header_font = ImageFont.truetype("DejaVuSans-Bold.ttf", 20)
+    font = ImageFont.truetype("DejaVuSans.ttf", 18)
+    header_font = ImageFont.truetype("DejaVuSans-Bold.ttf", 22)
 except IOError:
     font = ImageFont.load_default()
     header_font = font
 
-# Wrap paragraphs cleanly
+# Expanded width wrapping to utilize the full right side of the card
 wrapped_lines = []
 for paragraph in cleaned_tip.split("\n"):
     if paragraph.strip():
-        wrapped_lines.extend(textwrap.wrap(paragraph.strip(), width=74))
+        wrapped_lines.extend(textwrap.wrap(paragraph.strip(), width=95))
 
-# Dynamically compute box dimensions based on line count
-line_height = 22
-header_height = 30
-padding = 25
-total_text_height = (len(wrapped_lines) * line_height) + header_height + (padding * 2)
-
-box_x0 = 40
-box_x1 = img_width - 40
+box_x0 = 35
+box_x1 = img_width - 35
+box_y0 = 660
 box_y1 = img_height - 30
-box_y0 = box_y1 - total_text_height
 
 overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
 draw_overlay = ImageDraw.Draw(overlay)
@@ -167,18 +161,18 @@ draw_overlay.rounded_rectangle(
 img = Image.alpha_composite(img, overlay).convert("RGB")
 draw = ImageDraw.Draw(img)
 
-text_x = box_x0 + 22
-text_y = box_y0 + 18
+text_x = box_x0 + 25
+text_y = box_y0 + 16
 
 draw.text((text_x, text_y), header_tag, fill=(250, 204, 21, 255), font=header_font)
-text_y += header_height
+text_y += 32
 
-for line in wrapped_lines:
+for line in wrapped_lines[:6]:
     draw.text((text_x, text_y), line, fill=(241, 245, 249, 255), font=font)
-    text_y += line_height
+    text_y += 24
 
 img.save(image_path, "PNG")
-print("Tip background image with dynamically fitted text overlay successfully generated and saved!")
+print("Tip background image with full-width text overlay successfully generated and saved!")
 
 # 5. Format Social Media Caption Text
 post_header = make_bold("💡 DAILY PMP TIP 💡\n\n")
