@@ -9,7 +9,7 @@ from google.genai import types
 
 def make_bold(text):
     normal = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-    bold = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵"
+    bold = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜J𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵"
     return text.translate(str.maketrans(normal, bold))
 
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
@@ -135,12 +135,10 @@ except IOError:
     font = ImageFont.load_default()
     header_font = font
 
-# Define card box coordinates matching picture margins
 box_x0 = 40
 box_x1 = img_width - 40
-max_text_width = (box_x1 - box_x0) - 50  # Available horizontal pixel width
+max_text_width = (box_x1 - box_x0) - 50
 
-# Precise pixel-based word wrapping function
 wrapped_lines = []
 for paragraph in cleaned_tip.split("\n"):
     if not paragraph.strip():
@@ -149,7 +147,6 @@ for paragraph in cleaned_tip.split("\n"):
     current_line = ""
     for word in words:
         test_line = f"{current_line} {word}".strip()
-        # Check text width in pixels using the font object
         if font.getlength(test_line) <= max_text_width:
             current_line = test_line
         else:
@@ -159,7 +156,6 @@ for paragraph in cleaned_tip.split("\n"):
     if current_line:
         wrapped_lines.append(current_line)
 
-# Dynamically size box height based on exact line count so nothing overflows
 line_height = 24
 header_height = 32
 padding = 20
