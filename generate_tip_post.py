@@ -9,14 +9,14 @@ from google.genai import types
 
 def make_bold(text):
     normal = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-    bold = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜J𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵"
+    bold = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵"
     return text.translate(str.maketrans(normal, bold))
 
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
 # 1. Generate a concise Daily PMP Tip Text optimized for image overlays
 tip_prompt = (
-    "Create a very short, punchy, high-value daily PMP exam study tip (maximum 3 to 4 short sentences total). "
+    "Create a very short, punchy, high-value daily PMP exam study tip (maximum 3 short sentences total). "
     "Focus on a core project management principle or mindset rule. "
     "Output only the tip content without any Markdown formatting or emojis."
 )
@@ -124,24 +124,32 @@ if not image_bytes:
 
 image_path = "temp_tip_image.png"
 
-# 4. Process Image & Render Pixel-Perfect Wrapped Text Box Overlay
+# 4. Process Image & Render Pixel-Perfect Text Box Overlay (Including On-Image CTA)
 img = Image.open(BytesIO(image_bytes)).convert("RGBA")
 img_width, img_height = img.size
 
 try:
-    font = ImageFont.truetype("DejaVuSans.ttf", 18)
-    header_font = ImageFont.truetype("DejaVuSans-Bold.ttf", 22)
+    font = ImageFont.truetype("DejaVuSans.ttf", 16)
+    header_font = ImageFont.truetype("DejaVuSans-Bold.ttf", 20)
+    cta_font = ImageFont.truetype("DejaVuSans-Bold.ttf", 15)
 except IOError:
     font = ImageFont.load_default()
     header_font = font
+    cta_font = font
 
-box_x0 = 40
-box_x1 = img_width - 40
+box_x0 = 35
+box_x1 = img_width - 35
 max_text_width = (box_x1 - box_x0) - 50
 
+# Combine tip and on-image CTA prompt
+capm_link = "courses.velociteach.com/online-courses/capm-pta"
+cta_text = f"Ready for the exam? Try the 3-hr CAPM Practice Test: {capm_link}"
+full_text_content = f"{cleaned_tip}\n\n{cta_text}"
+
 wrapped_lines = []
-for paragraph in cleaned_tip.split("\n"):
+for paragraph in full_text_content.split("\n"):
     if not paragraph.strip():
+        wrapped_lines.append("")  # preserve blank line spacing
         continue
     words = paragraph.strip().split()
     current_line = ""
@@ -156,12 +164,12 @@ for paragraph in cleaned_tip.split("\n"):
     if current_line:
         wrapped_lines.append(current_line)
 
-line_height = 24
-header_height = 32
-padding = 20
+line_height = 22
+header_height = 28
+padding = 18
 total_box_height = header_height + (len(wrapped_lines) * line_height) + (padding * 2)
 
-box_y1 = img_height - 30
+box_y1 = img_height - 25
 box_y0 = box_y1 - total_box_height
 
 overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
@@ -170,7 +178,7 @@ draw_overlay = ImageDraw.Draw(overlay)
 draw_overlay.rounded_rectangle(
     [box_x0, box_y0, box_x1, box_y1], 
     radius=16, 
-    fill=(15, 23, 42, 235), 
+    fill=(15, 23, 42, 240), 
     outline=(59, 130, 246, 255), 
     width=3
 )
@@ -179,31 +187,39 @@ img = Image.alpha_composite(img, overlay).convert("RGB")
 draw = ImageDraw.Draw(img)
 
 text_x = box_x0 + 25
-text_y = box_y0 + 16
+text_y = box_y0 + 14
 
 draw.text((text_x, text_y), header_tag, fill=(250, 204, 21, 255), font=header_font)
 text_y += header_height
 
-for line in wrapped_lines:
-    draw.text((text_x, text_y), line, fill=(241, 245, 249, 255), font=font)
+for i, line in enumerate(wrapped_lines):
+    # Render the CTA line in accent yellow/gold so it stands out clearly
+    is_cta_line = "CAPM Practice Test" in line or "courses.velociteach.com" in line
+    current_font = cta_font if is_cta_line else font
+    text_color = (250, 204, 21, 255) if is_cta_line else (241, 245, 249, 255)
+    
+    if line == "":
+        text_y += 10
+        continue
+    draw.text((text_x, text_y), line, fill=text_color, font=current_font)
     text_y += line_height
 
 img.save(image_path, "PNG")
-print("Tip background image with pixel-perfect text wrapping successfully generated and saved!")
+print("Tip background image with integrated CTA text overlay successfully generated and saved!")
 
 # 5. Format Social Media Caption Text
 post_header = make_bold("💡 DAILY PMP TIP 💡\n\n")
-capm_link = "https://courses.velociteach.com/online-courses/capm-pta/?ref=nwvmngf&tm_daily_question=0806"
+full_capm_url = "https://courses.velociteach.com/online-courses/capm-pta/?ref=nwvmngf&tm_daily_question=0806"
 
 capm_ctas = [
     "👇 " + make_bold("NOT QUITE READY FOR THE PMP? BUILD YOUR FOUNDATION FIRST!") + "\n" +
-    f"Test your knowledge with Velociteach's full 3-hour CAPM Practice Test for $89:\n{capm_link}",
+    f"Test your knowledge with Velociteach's full 3-hour CAPM Practice Test for $89:\n{full_capm_url}",
     
     "👇 " + make_bold("BUILDING YOUR PROJECT MANAGEMENT CAREER?") + "\n" +
-    f"The CAPM is the perfect stepping stone to the PMP. Try this comprehensive 3-hour practice exam from Velociteach:\n{capm_link}",
+    f"The CAPM is the perfect stepping stone to the PMP. Try this comprehensive 3-hour practice exam from Velociteach:\n{full_capm_url}",
     
     "👇 " + make_bold("WANT TO TEST YOUR BASELINE KNOWLEDGE?") + "\n" +
-    f"See where you stand with this complete 3-hour CAPM practice exam from Velociteach:\n{capm_link}"
+    f"See where you stand with this complete 3-hour CAPM practice exam from Velociteach:\n{full_capm_url}"
 ]
 
 cta_block = "\n\n" + random.choice(capm_ctas)
