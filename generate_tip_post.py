@@ -77,9 +77,31 @@ settings_pool = [
 selected_animals = random.choice(animals_pool)
 selected_setting = random.choice(settings_pool)
 
-# Image generation prompt and saving logic placeholder
-# (Ensure your image generation variables/path are correctly referenced below)
+# 3. Generate Image using Imagen / Gemini Image Generation & Save
+image_prompt = (
+    f"A professional, bright, eye-catching photo showing {selected_animals} inside {selected_setting}. "
+    "High quality, vibrant lighting, clean composition suitable for a professional study brand background."
+)
+
+print(f"Generating background image with prompt: {image_prompt}")
+image_result = client.models.generate_images(
+    model='imagen-3.0-generate-002',
+    prompt=image_prompt,
+    config=types.GenerateImagesConfig(
+        number_of_images=1,
+        output_mime_type="image/jpeg",
+        aspect_ratio="1:1"
+    )
+)
+
+generated_image = image_result.generated_images[0]
+image_bytes = generated_image.image.image_bytes
 image_path = "temp_tip_image.png"
+
+# Load image into Pillow to composite text or save directly
+img = Image.open(BytesIO(image_bytes))
+img.save(image_path)
+print("Tip background image successfully generated and saved!")
 
 # 4. Format Social Media Caption Text
 post_header = make_bold(header_tag)
