@@ -14,10 +14,24 @@ def make_bold(text):
 
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
-# 1. Generate a concise Daily PMP Tip Text optimized for image overlays
+# 1. Randomized Topic Selector to Guarantee Unique Daily Content
+pmp_topics = [
+    "agile retrospectives and sprint velocity",
+    "risk mitigation and contingency reserve strategies",
+    "stakeholder engagement and communication channels",
+    "earned value management (EVM) variance analysis",
+    "change request control and scope creep prevention",
+    "procurement contracts and fixed-price vs cost-reimbursable",
+    "resource leveling versus resource smoothing",
+    "quality assurance versus quality control",
+    "project charter and assumption logs",
+    "conflict resolution techniques (collaborating, smoothing, forcing)"
+]
+selected_topic = random.choice(pmp_topics)
+
 tip_prompt = (
-    "Create a very short, punchy, high-value daily PMP exam study tip (maximum 3 short sentences total). "
-    "Focus on a core project management principle or mindset rule. "
+    f"Create a very short, punchy, high-value daily PMP exam study tip (maximum 3 short sentences total) "
+    f"specifically focused on: {selected_topic}. "
     "Output only the tip content without any Markdown formatting or emojis."
 )
 
@@ -64,7 +78,6 @@ ai_tip_formatted = make_bold(cleaned_tip)
 
 # 2. Expanded Dynamic Randomization Pools for Unique Daily Backgrounds
 animals_pool = [
-    # Original Pool
     "a fluffy golden retriever puppy and a playful orange kitten",
     "a joyful golden retriever puppy and a curious red panda",
     "a golden retriever puppy and a clever baby elephant wearing tiny glasses",
@@ -73,7 +86,6 @@ animals_pool = [
     "a happy golden retriever puppy and a curious gecko",
     "a golden retriever and a bunny rabbit",
     "a senior golden retriever and an American bulldog mix puppy",
-    # 15 New Characters (Including Petey & PMP Training Companions)
     "Andrew the golden retriever puppy teaching Petey, a loyal white-and-black pit bull mix with a distinct black patch over his left eye",
     "Andrew the golden retriever puppy studying alongside Barnaby, a tall bespectacled giraffe wearing a tweed vest",
     "Andrew the golden retriever puppy mentoring Professor Pip, a clever little field mouse with tiny wire-rimmed spectacles",
@@ -92,7 +104,6 @@ animals_pool = [
 ]
 
 settings_pool = [
-    # Original Pool
     "a modern sunlit tech startup open-office with colorful beanbag chairs and whiteboards",
     "a cozy rustic wooden treehouse study room surrounded by green forest canopy views",
     "a futuristic sci-fi command center with glowing holographic project schedules",
@@ -101,7 +112,6 @@ settings_pool = [
     "a vintage tech workshop filled with gadgets, tools, and warm lighting",
     "a modern tech startup conference room",
     "a college library study table",
-    # 15 New PMP Training & Student-Teacher Settings
     "a sunlit university lecture hall with tiered wooden desks and a large chalkboard covered in PMP network diagrams",
     "a cozy after-school study nook filled with floor cushions, glowing string lights, and PMP flashcards scattered across the table",
     "a modern corporate PMP training center equipped with ergonomic chairs, dual-monitor workstations, and a glass whiteboard showing an Agile sprint board",
