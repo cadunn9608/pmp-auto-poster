@@ -1,7 +1,6 @@
 import os
 import time
 import random
-import textwrap
 import requests
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
@@ -125,7 +124,7 @@ if not image_bytes:
 
 image_path = "temp_tip_image.png"
 
-# 4. Process Image & Render Full-Width Text Box Overlay
+# 4. Process Image & Render Pixel-Perfect Wrapped Text Box Overlay
 img = Image.open(BytesIO(image_bytes)).convert("RGBA")
 img_width, img_height = img.size
 
@@ -136,16 +135,38 @@ except IOError:
     font = ImageFont.load_default()
     header_font = font
 
-# Expanded width wrapping to utilize the full right side of the card
+# Define card box coordinates matching picture margins
+box_x0 = 40
+box_x1 = img_width - 40
+max_text_width = (box_x1 - box_x0) - 50  # Available horizontal pixel width
+
+# Precise pixel-based word wrapping function
 wrapped_lines = []
 for paragraph in cleaned_tip.split("\n"):
-    if paragraph.strip():
-        wrapped_lines.extend(textwrap.wrap(paragraph.strip(), width=95))
+    if not paragraph.strip():
+        continue
+    words = paragraph.strip().split()
+    current_line = ""
+    for word in words:
+        test_line = f"{current_line} {word}".strip()
+        # Check text width in pixels using the font object
+        if font.getlength(test_line) <= max_text_width:
+            current_line = test_line
+        else:
+            if current_line:
+                wrapped_lines.append(current_line)
+            current_line = word
+    if current_line:
+        wrapped_lines.append(current_line)
 
-box_x0 = 35
-box_x1 = img_width - 35
-box_y0 = 660
+# Dynamically size box height based on exact line count so nothing overflows
+line_height = 24
+header_height = 32
+padding = 20
+total_box_height = header_height + (len(wrapped_lines) * line_height) + (padding * 2)
+
 box_y1 = img_height - 30
+box_y0 = box_y1 - total_box_height
 
 overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
 draw_overlay = ImageDraw.Draw(overlay)
@@ -165,14 +186,14 @@ text_x = box_x0 + 25
 text_y = box_y0 + 16
 
 draw.text((text_x, text_y), header_tag, fill=(250, 204, 21, 255), font=header_font)
-text_y += 32
+text_y += header_height
 
-for line in wrapped_lines[:6]:
+for line in wrapped_lines:
     draw.text((text_x, text_y), line, fill=(241, 245, 249, 255), font=font)
-    text_y += 24
+    text_y += line_height
 
 img.save(image_path, "PNG")
-print("Tip background image with full-width text overlay successfully generated and saved!")
+print("Tip background image with pixel-perfect text wrapping successfully generated and saved!")
 
 # 5. Format Social Media Caption Text
 post_header = make_bold("💡 DAILY PMP TIP 💡\n\n")
