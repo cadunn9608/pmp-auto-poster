@@ -77,7 +77,7 @@ settings_pool = [
 selected_animals = random.choice(animals_pool)
 selected_setting = random.choice(settings_pool)
 
-# 3. Generate Image using standard Imagen model call
+# 3. Generate Image using Imagen Model
 image_prompt = (
     f"A professional, bright, eye-catching photo showing {selected_animals} inside {selected_setting}. "
     "High quality, vibrant lighting, clean composition suitable for a professional study brand background."
@@ -85,33 +85,21 @@ image_prompt = (
 
 print(f"Generating background image with prompt: {image_prompt}")
 
-# Use the correct SDK image generation endpoint with fallback model IDs
-image_bytes = None
-image_models = ["imagen-3.0", "imagen-3.0-generate-001"]
+image_result = client.models.generate_images(
+    model='imagen-3.0-generate-002',
+    prompt=image_prompt,
+    config=types.GenerateImagesConfig(
+        number_of_images=1,
+        output_mime_type="image/jpeg",
+        aspect_ratio="1:1"
+    )
+)
 
-for img_model in image_models:
-    try:
-        result = client.models.generate_images(
-            model=img_model,
-            prompt=image_prompt,
-            config=types.GenerateImagesConfig(
-                number_of_images=1,
-                output_mime_type="image/jpeg",
-                aspect_ratio="1:1"
-            )
-        )
-        if result and result.generated_images:
-            image_bytes = result.generated_images[0].image.image_bytes
-            print(f"Successfully generated image using {img_model}!")
-            break
-    except Exception as e:
-        print(f"Image model {img_model} failed: {e}. Trying next...")
-
-if not image_bytes:
-    raise Exception("All image generation models failed.")
-
+generated_image = image_result.generated_images[0]
+image_bytes = generated_image.image.image_bytes
 image_path = "temp_tip_image.png"
-img = Image.open(BytesIO(image_bytes)).convert("RGB")
+
+img = Image.open(BytesIO(image_bytes))
 img.save(image_path)
 print("Tip background image successfully generated and saved!")
 
