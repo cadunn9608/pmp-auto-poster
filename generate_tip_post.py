@@ -77,28 +77,32 @@ settings_pool = [
 selected_animals = random.choice(animals_pool)
 selected_setting = random.choice(settings_pool)
 
-# 3. Generate Image using Imagen / Gemini Image Generation & Save
+# 3. Generate Image using generate_content (New SDK Standard)
 image_prompt = (
     f"A professional, bright, eye-catching photo showing {selected_animals} inside {selected_setting}. "
     "High quality, vibrant lighting, clean composition suitable for a professional study brand background."
 )
 
 print(f"Generating background image with prompt: {image_prompt}")
-image_result = client.models.generate_images(
+response = client.models.generate_content(
     model='imagen-3.0-generate-002',
-    prompt=image_prompt,
-    config=types.GenerateImagesConfig(
-        number_of_images=1,
-        output_mime_type="image/jpeg",
-        aspect_ratio="1:1"
+    contents=image_prompt,
+    config=types.GenerateContentConfig(
+        response_mime_type="image/jpeg"
     )
 )
 
-generated_image = image_result.generated_images[0]
-image_bytes = generated_image.image.image_bytes
-image_path = "temp_tip_image.png"
+# Extract image bytes from response parts
+image_bytes = None
+for part in response.candidates[0].content.parts:
+    if part.inline_data:
+        image_bytes = part.inline_data.data
+        break
 
-# Load image into Pillow to composite text or save directly
+if not image_bytes:
+    raise Exception("Failed to extract generated image bytes from response.")
+
+image_path = "temp_tip_image.png"
 img = Image.open(BytesIO(image_bytes))
 img.save(image_path)
 print("Tip background image successfully generated and saved!")
