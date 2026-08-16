@@ -62,8 +62,9 @@ for p in prefixes_to_strip:
 header_tag = "★ DAILY PMP TIP ★"
 ai_tip_formatted = make_bold(cleaned_tip)
 
-# 2. Dynamic Randomization Pools for Unique Daily Backgrounds
+# 2. Expanded Dynamic Randomization Pools for Unique Daily Backgrounds
 animals_pool = [
+    # Original Pool
     "a fluffy golden retriever puppy and a playful orange kitten",
     "a joyful golden retriever puppy and a curious red panda",
     "a golden retriever puppy and a clever baby elephant wearing tiny glasses",
@@ -71,10 +72,27 @@ animals_pool = [
     "a cheerful golden retriever puppy and an energetic fox kit",
     "a happy golden retriever puppy and a curious gecko",
     "a golden retriever and a bunny rabbit",
-    "a senior golden retriever and a american bulldog mix puppy"
+    "a senior golden retriever and an American bulldog mix puppy",
+    # 15 New Characters (Including Petey & PMP Training Companions)
+    "Andrew the golden retriever puppy teaching Petey, a loyal white-and-black pit bull mix with a distinct black patch over his left eye",
+    "Andrew the golden retriever puppy studying alongside Barnaby, a tall bespectacled giraffe wearing a tweed vest",
+    "Andrew the golden retriever puppy mentoring Professor Pip, a clever little field mouse with tiny wire-rimmed spectacles",
+    "Andrew the golden retriever puppy collaborating with Maya, an energetic spider monkey wearing a bright yellow safety helmet",
+    "Andrew the golden retriever puppy taking notes from Winston, a wise old owl with a bowtie perched on reference books",
+    "Andrew the golden retriever puppy reviewing blueprints with Cleo, a sleek Siamese cat wearing an architect's hard hat",
+    "Andrew the golden retriever puppy working with Buster, a stout bulldog wearing a security guard cap and holding a clipboard",
+    "Andrew the golden retriever puppy brainstorming with Penny, a cheerful red panda wearing a polka-dot scarf",
+    "Andrew the golden retriever puppy mentoring Oliver, a curious baby elephant wearing round glasses",
+    "Andrew the golden retriever puppy analyzing data with Zoe, a sleek snow leopard wearing a tech vest",
+    "Andrew the golden retriever puppy studying project schedules with Dexter, a studious beaver in a flannel shirt",
+    "Andrew the golden retriever puppy grading papers with Luna, a gentle silver-furred fox wearing a silk scarf",
+    "Andrew the golden retriever puppy organizing tasks with Sammy, an enthusiastic sea otter with a tool belt",
+    "Andrew the golden retriever puppy reviewing a project charter with Felix, a sharp-dressed red fox in a necktie",
+    "Andrew the golden retriever puppy carrying binders with Hazel, a fluffy squirrel wearing a knitted cardigan"
 ]
 
 settings_pool = [
+    # Original Pool
     "a modern sunlit tech startup open-office with colorful beanbag chairs and whiteboards",
     "a cozy rustic wooden treehouse study room surrounded by green forest canopy views",
     "a futuristic sci-fi command center with glowing holographic project schedules",
@@ -82,7 +100,23 @@ settings_pool = [
     "a vintage artisan workshop filled with creative blueprints, tools, and warm lighting",
     "a vintage tech workshop filled with gadgets, tools, and warm lighting",
     "a modern tech startup conference room",
-    "a college library study table"
+    "a college library study table",
+    # 15 New PMP Training & Student-Teacher Settings
+    "a sunlit university lecture hall with tiered wooden desks and a large chalkboard covered in PMP network diagrams",
+    "a cozy after-school study nook filled with floor cushions, glowing string lights, and PMP flashcards scattered across the table",
+    "a modern corporate PMP training center equipped with ergonomic chairs, dual-monitor workstations, and a glass whiteboard showing an Agile sprint board",
+    "a bustling campus library study carrel surrounded by towering PMBOK reference guidebooks and steaming mugs of coffee",
+    "an outdoor courtyard PMP seminar under a sprawling oak tree with picnic tables and a portable whiteboard detailing risk management matrices",
+    "a high-tech project management war room featuring glowing digital Gantt charts and Earned Value Management formulas on large wall displays",
+    "a rustic wooden cabin study room with a crackling stone fireplace and vintage Work Breakdown Structure (WBS) charts pinned to the walls",
+    "a bright architectural drafting studio cluttered with T-squares, scale rulers, and project schedule network logic diagrams",
+    "a cheerful adult-education classroom featuring colorful alphabet blocks spelling out 'PMP' and collaborative break-out stations",
+    "a rooftop terrace study garden surrounded by potted succulents, solar lanterns, and a panoramic city view while reviewing stakeholder engagement grids",
+    "an underground PM workshop lit by Edison bulbs, filled with tinkering tools and a chalkboard mapping out critical path analysis",
+    "a quiet museum archive room with polished mahogany tables, brass reading lamps, and historical project logs for case study reviews",
+    "a sleek Silicon Valley incubator space with exposed brick walls, neon motivational agile quotes, and glass-walled Scrum review pods",
+    "a serene botanical greenhouse classroom filled with lush ferns and a rustic wooden podium draped with PMP exam simulation guides",
+    "a vintage mid-century modern home office featuring a teakwood desk, a retro rotary phone, and an organized Kanban board tracking project deliverables"
 ]
 
 selected_animals = random.choice(animals_pool)
