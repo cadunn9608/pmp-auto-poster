@@ -48,7 +48,7 @@ for model_name in text_models_to_try:
 if not ai_tip_raw:
     raise Exception("All models failed to generate tip content due to high demand.")
 
-# Aggressively strip any redundant prefixes case-insensitively
+# Clean up redundant prefixes case-insensitively
 cleaned_tip = ai_tip_raw
 prefixes_to_strip = [
     "pmp exam tip:", "pmp study tip:", "exam tip:", "study tip:", "tip:",
@@ -125,27 +125,33 @@ if not image_bytes:
 
 image_path = "temp_tip_image.png"
 
-# 4. Process Image & Render Expanded, Properly Sized Text Box Overlay
+# 4. Process Image & Render Dynamically Sized Text Box Overlay
 img = Image.open(BytesIO(image_bytes)).convert("RGBA")
 img_width, img_height = img.size
 
 try:
-    font = ImageFont.truetype("DejaVuSans.ttf", 20)
-    header_font = ImageFont.truetype("DejaVuSans-Bold.ttf", 24)
+    font = ImageFont.truetype("DejaVuSans.ttf", 17)
+    header_font = ImageFont.truetype("DejaVuSans-Bold.ttf", 20)
 except IOError:
     font = ImageFont.load_default()
     header_font = font
 
+# Wrap paragraphs cleanly
 wrapped_lines = []
 for paragraph in cleaned_tip.split("\n"):
     if paragraph.strip():
-        wrapped_lines.extend(textwrap.wrap(paragraph.strip(), width=72))
+        wrapped_lines.extend(textwrap.wrap(paragraph.strip(), width=74))
 
-# Expanded box height to prevent any text clipping
+# Dynamically compute box dimensions based on line count
+line_height = 22
+header_height = 30
+padding = 25
+total_text_height = (len(wrapped_lines) * line_height) + header_height + (padding * 2)
+
 box_x0 = 40
 box_x1 = img_width - 40
-box_y0 = 620
 box_y1 = img_height - 30
+box_y0 = box_y1 - total_text_height
 
 overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
 draw_overlay = ImageDraw.Draw(overlay)
@@ -161,18 +167,18 @@ draw_overlay.rounded_rectangle(
 img = Image.alpha_composite(img, overlay).convert("RGB")
 draw = ImageDraw.Draw(img)
 
-text_x = box_x0 + 30
-text_y = box_y0 + 20
+text_x = box_x0 + 22
+text_y = box_y0 + 18
 
 draw.text((text_x, text_y), header_tag, fill=(250, 204, 21, 255), font=header_font)
-text_y += 36
+text_y += header_height
 
 for line in wrapped_lines:
     draw.text((text_x, text_y), line, fill=(241, 245, 249, 255), font=font)
-    text_y += 28
+    text_y += line_height
 
 img.save(image_path, "PNG")
-print("Tip background image with expanded text overlay successfully generated and saved!")
+print("Tip background image with dynamically fitted text overlay successfully generated and saved!")
 
 # 5. Format Social Media Caption Text
 post_header = make_bold("💡 DAILY PMP TIP 💡\n\n")
