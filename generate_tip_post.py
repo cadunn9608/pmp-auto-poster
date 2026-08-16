@@ -75,19 +75,14 @@ settings_pool = [
 ]
 
 selected_animals = random.choice(animals_pool)
-@@ -164,40 +168,51 @@
-img.save(image_path)
-print("Text box margins and wrapping successfully corrected!")
+selected_setting = random.choice(settings_pool)
+
+# Image generation prompt and saving logic placeholder
+# (Ensure your image generation variables/path are correctly referenced below)
+image_path = "temp_tip_image.png"
 
 # 4. Format Social Media Caption Text
-# 4. Format Social Media Caption Text (UPDATED FOR VELOCITEACH CAPM)
 post_header = make_bold(header_tag)
-cta_block = (
-    "\n\n👇 " + make_bold("READY TO PASS YOUR PMP EXAM ON THE FIRST TRY?") + "\n" +
-    make_bold("Join 50,000 other students from 180 countries in top-rated training with Master of Project Academy:") + "\n" +
-    "https://masterofproject.com/"
-)
-
 capm_link = "https://courses.velociteach.com/online-courses/capm-pta/?ref=nwvmngf&tm_daily_question=0806"
 
 # Rotating CTAs to prevent Facebook from flagging posts as repetitive spam
