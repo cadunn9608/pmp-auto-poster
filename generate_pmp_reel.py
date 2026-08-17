@@ -9,13 +9,15 @@ import asyncio
 import traceback
 import edge_tts
 from google import genai
+from PIL import Image
+from io import BytesIO
 
 import builtins
 def print(*args, **kwargs):
     kwargs['flush'] = True
     builtins.print(*args, **kwargs)
 
-print("🚀 SCRIPT INITIATED: Nano Banana Full-Motion Video Pipeline...")
+print("🚀 SCRIPT INITIATED: Full-Length Natural Audio & Precision Lip-Sync Pipeline...")
 
 # ==============================================================================
 # CONFIGURATION & ABSOLUTE PATH SETUP
@@ -26,8 +28,9 @@ FB_ACCESS_TOKEN = os.environ.get("FB_ACCESS_TOKEN")
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+GENERATED_IMAGE = os.path.join(ROOT_DIR, "host_character.png")
 VOICE_AUDIO_MP3 = os.path.join(ROOT_DIR, "speech_original.mp3")
-VIDEO_BACKGROUND = os.path.join(ROOT_DIR, "nano_banana_bg.mp4")
+VIDEO_LIPSYNC = os.path.join(ROOT_DIR, "talking_head.mp4")
 FINAL_REEL = os.path.join(ROOT_DIR, "daily_pmp_reel.mp4")
 
 def validate_environment():
@@ -49,14 +52,11 @@ pmp_reel_topics = [
 ]
 
 character_settings_pool = [
-    "A 3D Pixar style golden retriever wearing a tiny project management hard hat.",
-    "A 3D Pixar style friendly ginger cat wearing a sleek headset.",
-    "A 3D Pixar style golden retriever puppy wearing tropical sunglasses."
+    "A clean, symmetrical, front-facing 3D Pixar style portrait of a golden retriever wearing a tiny project management hard hat. Looking straight ahead at the camera, clear jawline, distinct mouth, studio lighting.",
+    "A clean, symmetrical, front-facing 3D Pixar style portrait of a friendly ginger cat wearing a sleek headset. Looking straight ahead at the camera, clear visible mouth, studio lighting.",
+    "A clean, symmetrical, front-facing 3D Pixar style portrait of a golden retriever puppy wearing sunglasses. Looking straight ahead at the camera, clear visible mouth, vibrant lighting."
 ]
 
-# ==============================================================================
-# STEP 1: CONTENT GENERATION
-# ==============================================================================
 def get_daily_pmp_content():
     print("1️⃣ Fetching full-length PMP question and script from Gemini...")
     client = genai.Client(api_key=GEMINI_API_KEY)
@@ -97,43 +97,29 @@ def get_daily_pmp_content():
         time.sleep(5)
     raise RuntimeError("Failed to generate content from Gemini.")
 
-# ==============================================================================
-# STEP 2: NANO BANANA VIDEO GENERATION (FULL MOTION)
-# ==============================================================================
-def generate_nano_banana_video():
-    print("2️⃣ Generating full-motion video via Nano Banana...")
+def generate_character_image():
+    print("2️⃣ Generating precision-framed character portrait via Gemini...")
     client = genai.Client(api_key=GEMINI_API_KEY)
-    base_character = random.choice(character_settings_pool)
+    selected_prompt = random.choice(character_settings_pool)
     
-    video_prompt = (
-        f"Vertical 9:16 cinematic video. {base_character}. "
-        "The character is highly animated, moving their head naturally, blinking their eyes, "
-        "and making expressive hand gestures as if explaining a complex topic. "
-        "A glowing, animated 3D lightbulb pops up and floats over their head. "
-        "Bright studio lighting, Pixar/Disney 3D animation style, fluid motion."
-    )
-    
-    try:
-        # Requesting MP4 generation via Nano Banana / Gemini Video APIs
-        response = client.models.generate_content(
-            model="nano-banana-video", 
-            contents=video_prompt
-        )
-        
-        # Save the generated MP4 file directly
-        video_bytes = response.candidates[0].content.parts[0].inline_data.data
-        with open(VIDEO_BACKGROUND, "wb") as f:
-            f.write(video_bytes)
-            
-        print("✅ Nano Banana dynamic video successfully generated!")
-    except Exception as e:
-        raise RuntimeError(f"Nano Banana video generation failed: {e}")
+    for img_model in ["gemini-3.1-flash-image", "gemini-3.1-flash-image-preview", "gemini-1.5-pro"]:
+        try:
+            response = client.models.generate_content(model=img_model, contents=selected_prompt)
+            for candidate in response.candidates:
+                for part in candidate.content.parts:
+                    if part.inline_data and part.inline_data.data:
+                        img = Image.open(BytesIO(part.inline_data.data)).convert("RGB")
+                        img = img.resize((1080, 1920), Image.Resampling.LANCZOS)
+                        img.save(GENERATED_IMAGE)
+                        print("✅ Character image successfully saved and framed!")
+                        return
+        except Exception:
+            continue
+    raise RuntimeError("Gemini image generation failed.")
 
-# ==============================================================================
-# STEP 3: EXPRESSIVE AUDIO GENERATION
-# ==============================================================================
 async def generate_expressive_voice(text):
     print("3️⃣ Generating natural, expressive neural voice with SSML pauses...")
+    
     ssml_text = (
         "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>"
         "<voice name='en-US-AndrewMultilingualNeural'>"
@@ -150,38 +136,58 @@ async def generate_expressive_voice(text):
     
     communicate = edge_tts.Communicate(ssml_text, "en-US-AndrewMultilingualNeural")
     await communicate.save(VOICE_AUDIO_MP3)
-    print("✅ Audio generated successfully!")
 
-# ==============================================================================
-# STEP 4: ASSEMBLE LOOPING REEL
-# ==============================================================================
-def assemble_final_reel():
-    print("4️⃣ Merging Nano Banana visuals with natural Edge-TTS audio...")
-    # Loop the animated Nano Banana video infinitely (-stream_loop -1)
-    # until the audio track finishes (-shortest)
+def animate_character_mouth():
+    print("4️⃣ Running Wav2Lip with strict mouth-bounding box padding...")
+    wav2lip_dir = os.path.join(ROOT_DIR, "Wav2Lip")
+    os.makedirs(os.path.join(wav2lip_dir, "temp"), exist_ok=True)
+    
+    checkpoint = os.path.join(wav2lip_dir, "checkpoints", "wav2lip_gan.pth")
+    wav_path = os.path.join(ROOT_DIR, "speech.wav")
+    subprocess.run(["ffmpeg", "-y", "-i", VOICE_AUDIO_MP3, wav_path], check=True, capture_output=True)
+    
+    # --pads [top, bottom, left, right] ensures face detector locks strictly onto the mouth/jaw
     cmd = [
-        "ffmpeg", "-y",
-        "-stream_loop", "-1", 
-        "-i", VIDEO_BACKGROUND,
-        "-i", VOICE_AUDIO_MP3,
-        "-c:v", "libx264",
-        "-c:a", "aac",
-        "-shortest", 
-        "-preset", "ultrafast",
-        FINAL_REEL
+        "python", "inference.py", 
+        "--checkpoint_path", checkpoint,
+        "--face", GENERATED_IMAGE,
+        "--audio", wav_path, 
+        "--outfile", VIDEO_LIPSYNC,
+        "--pads", "0", "15", "0", "0",
+        "--nosmooth" 
     ]
     
-    res = subprocess.run(cmd, capture_output=True, text=True)
+    res = subprocess.run(cmd, cwd=wav2lip_dir, capture_output=True, text=True)
     if res.returncode != 0:
-        print(f"FFmpeg Error Output:\n{res.stderr}")
-        raise RuntimeError(f"FFmpeg merging failed: {res.stderr}")
-    print("✅ Full-length animated Reel exported successfully!")
+        print(f"Wav2Lip Error Output:\n{res.stderr}")
+        raise RuntimeError(f"Wav2Lip failed: {res.stderr}")
+    print("✅ Wav2Lip precision mouth sync complete!")
 
-# ==============================================================================
-# STEP 5: PUBLISH TO FACEBOOK
-# ==============================================================================
+def render_clean_reel():
+    print("5️⃣ Exporting full-length Reel...")
+    from moviepy.video.io.VideoFileClip import VideoFileClip
+    from moviepy.audio.io.AudioFileClip import AudioFileClip
+
+    video_clip = VideoFileClip(VIDEO_LIPSYNC)
+    audio_clip = AudioFileClip(VOICE_AUDIO_MP3)
+    final = video_clip.with_audio(audio_clip)
+    
+    final.write_videofile(
+        FINAL_REEL, 
+        fps=25, 
+        codec="libx264", 
+        audio_codec="aac",
+        preset="ultrafast",
+        logger=None
+    )
+    
+    video_clip.close()
+    audio_clip.close()
+    final.close()
+    print("✅ Full-length Reel exported successfully!")
+
 def publish_to_facebook(content):
-    print("5️⃣ Uploading Reel to Facebook Page...")
+    print("6️⃣ Uploading Reel to Facebook Page...")
     url = f"https://graph.facebook.com/v19.0/{FB_PAGE_ID}/videos"
     
     description = (
@@ -212,17 +218,15 @@ def publish_to_facebook(content):
         
     print(f"🎉 Successfully published full-length Reel to Facebook! Video ID: {res_data['id']}")
 
-# ==============================================================================
-# MAIN EXECUTION
-# ==============================================================================
 if __name__ == "__main__":
     try:
         validate_environment()
         content = get_daily_pmp_content()
-        generate_nano_banana_video()
+        generate_character_image()
         
         asyncio.run(generate_expressive_voice(content["spoken_script"]))
-        assemble_final_reel()
+        animate_character_mouth()
+        render_clean_reel()
         publish_to_facebook(content)
         
         print("✅ PIPELINE COMPLETED SUCCESSFULLY!")
