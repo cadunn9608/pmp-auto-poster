@@ -23,8 +23,8 @@ print("🚀 SCRIPT INITIATED: Full-Length Natural Audio & Precision Lip-Sync Pip
 # CONFIGURATION & ABSOLUTE PATH SETUP
 # ==============================================================================
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-FB_PAGE_ID = os.environ.get("FB_PAGE_ID")
-FB_ACCESS_TOKEN = os.environ.get("FB_ACCESS_TOKEN")
+FB_PAGE_ID = os.environ.get("FACEBOOK_PAGE_ID") or os.environ.get("FB_PAGE_ID")
+FB_ACCESS_TOKEN = os.environ.get("FACEBOOK_ACCESS_TOKEN") or os.environ.get("FB_ACCESS_TOKEN")
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -36,8 +36,8 @@ FINAL_REEL = os.path.join(ROOT_DIR, "daily_pmp_reel.mp4")
 def validate_environment():
     missing = []
     if not GEMINI_API_KEY or not GEMINI_API_KEY.strip(): missing.append("GEMINI_API_KEY")
-    if not FB_PAGE_ID or not FB_PAGE_ID.strip(): missing.append("FB_PAGE_ID")
-    if not FB_ACCESS_TOKEN or not FB_ACCESS_TOKEN.strip(): missing.append("FB_ACCESS_TOKEN")
+    if not FB_PAGE_ID or not FB_PAGE_ID.strip(): missing.append("FACEBOOK_PAGE_ID")
+    if not FB_ACCESS_TOKEN or not FB_ACCESS_TOKEN.strip(): missing.append("FACEBOOK_ACCESS_TOKEN")
     if missing:
         raise ValueError(f"❌ Critical environment variables missing: {missing}")
     print("✅ Environment variables validated.")
@@ -82,11 +82,15 @@ def get_daily_pmp_content():
         "}"
     )
     
-    models_to_try = ["gemini-3.5-flash", "gemini-3.1-flash", "gemini-1.5-flash"]
+    models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
     for attempt in range(1, 4):
         for model_name in models_to_try:
             try:
-                response = client.models.generate_content(model=model_name, contents=prompt, config={"response_mime_type": "application/json"})
+                response = client.models.generate_content(
+                    model=model_name, 
+                    contents=prompt, 
+                    config={"response_mime_type": "application/json"}
+                )
                 raw_text = response.text.strip()
                 bt = chr(96) * 3
                 if f"{bt}json" in raw_text: raw_text = raw_text.split(f"{bt}json")[1].split(bt)[0]
@@ -102,7 +106,7 @@ def generate_character_image():
     client = genai.Client(api_key=GEMINI_API_KEY)
     selected_prompt = random.choice(character_settings_pool)
     
-    for img_model in ["gemini-3.1-flash-image", "gemini-3.1-flash-image-preview", "gemini-1.5-pro"]:
+    for img_model in ["imagen-3.0-generate-002", "gemini-2.5-flash"]:
         try:
             response = client.models.generate_content(model=img_model, contents=selected_prompt)
             for candidate in response.candidates:
@@ -146,7 +150,6 @@ def animate_character_mouth():
     wav_path = os.path.join(ROOT_DIR, "speech.wav")
     subprocess.run(["ffmpeg", "-y", "-i", VOICE_AUDIO_MP3, wav_path], check=True, capture_output=True)
     
-    # --pads [top, bottom, left, right] ensures face detector locks strictly onto the mouth/jaw
     cmd = [
         "python", "inference.py", 
         "--checkpoint_path", checkpoint,
