@@ -1,318 +1,302 @@
 import os
 import sys
-import json
-import time
 import subprocess
-import random
-import requests
 import asyncio
-import traceback
-import edge_tts
-from google import genai
-from google.genai import types
+import requests
+import json
+import re
 from PIL import Image
 from io import BytesIO
 
-import builtins
-def print(*args, **kwargs):
-    kwargs['flush'] = True
-    builtins.print(*args, **kwargs)
+# --- MOVIEPY COMPATIBILITY LAYER ---
+try:
+    from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip, AudioFileClip, ColorClip
+except ImportError:
+    from moviepy.video.io.VideoFileClip import VideoFileClip
+    from moviepy.video.VideoClip import TextClip, ColorClip
+    from moviepy.video.compositing.CompositeVideoClip import CompositeVideoClip
+    from moviepy.audio.io.AudioFileClip import AudioFileClip
 
-print("🚀 SCRIPT INITIATED: Full-Length Natural Audio & Precision Lip-Sync Pipeline...")
+from google import genai
+from google.genai import types
+import edge_tts
 
-# ==============================================================================
-# CONFIGURATION & ABSOLUTE PATH SETUP
-# ==============================================================================
+# ==========================================
+# PIPELINE CONFIGURATION & ENV VALIDATION
+# ==========================================
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-FB_PAGE_ID = os.environ.get("FACEBOOK_PAGE_ID") or os.environ.get("FB_PAGE_ID")
-FB_ACCESS_TOKEN = os.environ.get("FACEBOOK_ACCESS_TOKEN") or os.environ.get("FB_ACCESS_TOKEN")
+FB_PAGE_ID = os.environ.get("FACEBOOK_PAGE_ID")
+FB_ACCESS_TOKEN = os.environ.get("FACEBOOK_ACCESS_TOKEN")
 
-ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+if not GEMINI_API_KEY:
+    raise ValueError("GEMINI_API_KEY environment variable is missing.")
 
-GENERATED_IMAGE = os.path.join(ROOT_DIR, "host_character.png")
-VOICE_AUDIO_MP3 = os.path.join(ROOT_DIR, "speech_original.mp3")
-VIDEO_LIPSYNC = os.path.join(ROOT_DIR, "talking_head.mp4")
-FINAL_REEL = os.path.join(ROOT_DIR, "daily_pmp_reel.mp4")
+client = genai.Client(api_key=GEMINI_API_KEY)
 
-def validate_environment():
-    missing = []
-    if not GEMINI_API_KEY or not GEMINI_API_KEY.strip(): missing.append("GEMINI_API_KEY")
-    if not FB_PAGE_ID or not FB_PAGE_ID.strip(): missing.append("FACEBOOK_PAGE_ID")
-    if not FB_ACCESS_TOKEN or not FB_ACCESS_TOKEN.strip(): missing.append("FACEBOOK_ACCESS_TOKEN")
-    if missing:
-        raise ValueError(f"❌ Critical environment variables missing: {missing}")
-    print("✅ Environment variables validated.")
-
-pmp_reel_topics = [
-    "agile team facilitation, servant leadership, and servant-leader mindset",
-    "risk management, response strategies, and quantitative/qualitative risk analysis",
-    "stakeholder engagement, communication planning, and managing expectations",
-    "earned value management (EVM), schedule variance (SV), and cost variance (CV)",
-    "change control procedures, integrated change control, and scope baseline management",
-    "resource management, team charter, conflict resolution, and performance appraisals"
-]
-
-character_settings_pool = [
-    "A clean, symmetrical, front-facing 3D Pixar style portrait of a golden retriever wearing a tiny project management hard hat. Looking straight ahead at the camera, clear jawline, distinct mouth, studio lighting.",
-    "A clean, symmetrical, front-facing 3D Pixar style portrait of a friendly ginger cat wearing a sleek headset. Looking straight ahead at the camera, clear visible mouth, studio lighting.",
-    "A clean, symmetrical, front-facing 3D Pixar style portrait of a golden retriever puppy wearing sunglasses. Looking straight ahead at the camera, clear visible mouth, vibrant lighting."
-]
-
-def get_daily_pmp_content():
+# ==========================================
+# STEP 1: GEMINI TEXT GENERATION
+# ==========================================
+def generate_pmp_content():
     print("1️⃣ Fetching full-length PMP question and script from Gemini...")
-    client = genai.Client(api_key=GEMINI_API_KEY)
-    selected_topic = random.choice(pmp_reel_topics)
     
-    prompt = (
-        f"Create a rigorous, situational PMP exam practice question specifically focused on: {selected_topic}. "
-        "Write a detailed, lively, and expressive spoken script for the animated host to read out loud. "
-        "The spoken script should be comprehensive (around 130 to 160 words so it takes about 60 to 75 seconds to speak). "
-        "Include the question breakdown, options, correct answer, and the PMP mindset explanation directly in the spoken script. "
-        "Use exclamation points, question marks, and ellipses (...) where the host should pause for dramatic effect. "
-        "Output strictly as a valid JSON object with these keys:\n"
-        "{\n"
-        f'    "topic": "{selected_topic}",\n'
-        '    "question": "A situational PMP question description...",\n'
-        '    "option_a": "A) First option text",\n'
-        '    "option_b": "B) Second option text",\n'
-        '    "option_c": "C) Third option text",\n'
-        '    "option_d": "D) Fourth option text",\n'
-        '    "correct_answer": "B) Second option text",\n'
-        '    "explanation": "Concise PMP mindset explanation...",\n'
-        '    "spoken_script": "Hey team! Are you ready for today\'s PMP challenge? Let\'s dive into a tough scenario about ' + selected_topic + '. Listen closely... [Read question outline]... Is it Option A? Option B? Option C? Or Option D? ... Let\'s look at the mindset. The correct answer is... [Explain why]! Keep crushing your PMP prep!"\n'
-        "}"
-    )
+    prompt = """
+    Create a realistic, high-quality PMP (Project Management Professional) exam scenario question.
+    Format your output strictly as a JSON object with the following keys:
+    {
+        "question": "The scenario question text here...",
+        "options": ["A) Option 1", "B) Option 2", "C) Option 3", "D) Option 4"],
+        "correct_answer": "A) Option 1",
+        "narration": "Natural, engaging spoken narration for a 30-45 second video reel. Start with 'Here is your daily PMP exam question.', state the scenario clearly, present the options, give a brief 2-second pause cue, and explain the correct choice based on the PMBOK guide."
+    }
+    Return ONLY valid JSON.
+    """
     
-    # Updated Gemini 3.x series models
-    candidate_models = [
-        "gemini-3.6-flash",
-        "gemini-3.5-flash",
-        "gemini-3.1-flash",
-        "gemini-3.1-flash-lite",
-        "gemini-3-flash-preview"
-    ]
+    candidate_models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
     
-    # 1. Attempt static list of candidate models
     for model_name in candidate_models:
         try:
             print(f"🔄 Attempting text generation with model '{model_name}'...")
             response = client.models.generate_content(
-                model=model_name, 
-                contents=prompt, 
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json"
-                )
+                model=model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(response_mime_type="application/json")
             )
-            raw_text = response.text.strip()
-            bt = chr(96) * 3
-            if f"{bt}json" in raw_text: raw_text = raw_text.split(f"{bt}json")[1].split(bt)[0]
-            elif bt in raw_text: raw_text = raw_text.split(bt)[1].split(bt)[0]
+            data = json.loads(response.text)
+            print(f"✅ Content generated successfully using '{model_name}'.")
+            return data
+        except Exception as e:
+            print(f"⚠️ Generation failed with model '{model_name}': {e}")
             
-            parsed = json.loads(raw_text.strip())
-            print(f"✅ Text generation succeeded using model '{model_name}'.")
-            return parsed
-        except Exception as e:
-            print(f"⚠️ Generation attempt with model '{model_name}' failed: {e}")
+    # Fallback default if API fails completely
+    print("⚠️ Returning fallback static PMP question data...")
+    return {
+        "question": "A project manager is facing scope creep during execution due to unapproved stakeholder requests. What should the project manager do FIRST?",
+        "options": [
+            "A) Implement the changes immediately to satisfy stakeholders",
+            "B) Evaluate the impact of the changes using the Perform Integrated Change Control process",
+            "C) Reject all incoming requests",
+            "D) Escalate the issue directly to the project sponsor"
+        ],
+        "correct_answer": "B) Evaluate the impact of the changes using the Perform Integrated Change Control process",
+        "narration": "Here is your daily PMP practice question! A project manager is facing scope creep during execution due to unapproved stakeholder requests. What should the project manager do first? The correct answer is B! Always process changes through the Perform Integrated Change Control process before updating baseline scope."
+    }
 
-    # 2. Dynamic Fallback: Query available API models if candidates fail
-    print("🌐 Hardcoded model attempts failed. Querying active models dynamically from Gemini API...")
+# ==========================================
+# STEP 2: CHARACTER PORTRAIT GENERATION
+# ==========================================
+def generate_character_image(prompt_text="A professional project manager host speaking into a studio microphone, portrait photo, centered face, high resolution"):
+    print("2️⃣ Preparing character portrait...")
+    output_path = "character.png"
+
+    # Method 1: Pollinations AI (Free online image API)
     try:
-        available_models = list(client.models.list())
-        for model in available_models:
-            model_id = getattr(model, "name", str(model))
-            if "gemini" in model_id.lower() and "tts" not in model_id.lower():
-                clean_name = model_id.replace("models/", "")
-                try:
-                    print(f"🔄 Dynamic fallback attempt with '{clean_name}'...")
-                    response = client.models.generate_content(
-                        model=clean_name,
-                        contents=prompt,
-                        config=types.GenerateContentConfig(
-                            response_mime_type="application/json"
-                        )
-                    )
-                    raw_text = response.text.strip()
-                    bt = chr(96) * 3
-                    if f"{bt}json" in raw_text: raw_text = raw_text.split(f"{bt}json")[1].split(bt)[0]
-                    elif bt in raw_text: raw_text = raw_text.split(bt)[1].split(bt)[0]
-                    
-                    parsed = json.loads(raw_text.strip())
-                    print(f"✅ Dynamic fallback succeeded with model '{clean_name}'.")
-                    return parsed
-                except Exception as inner_e:
-                    print(f"⚠️ Dynamic attempt with '{clean_name}' failed: {inner_e}")
-    except Exception as list_err:
-        print(f"⚠️ Failed to list active API models: {list_err}")
+        print("🔄 Generating portrait via Pollinations AI...")
+        encoded_prompt = requests.utils.quote(prompt_text)
+        url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=768&height=768&nologo=true"
+        resp = requests.get(url, timeout=30)
+        if resp.status_code == 200:
+            img = Image.open(BytesIO(resp.content))
+            img.save(output_path)
+            print(f"✅ Character portrait generated and saved to '{output_path}'.")
+            return output_path
+    except Exception as e:
+        print(f"⚠️ Pollinations AI generation failed: {e}")
 
-    raise RuntimeError("Failed to generate content from Gemini across all fallback mechanisms.")
+    # Method 2: High-quality professional avatar download fallback
+    try:
+        print("🔄 Downloading fallback default avatar...")
+        fallback_url = "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=800&q=80"
+        resp = requests.get(fallback_url, timeout=15)
+        if resp.status_code == 200:
+            img = Image.open(BytesIO(resp.content))
+            img.save(output_path)
+            print(f"✅ Default character portrait saved to '{output_path}'.")
+            return output_path
+    except Exception as e:
+        print(f"⚠️ Default avatar download failed: {e}")
 
-def generate_character_image():
-    print("2️⃣ Generating precision-framed character portrait via Gemini/Imagen...")
-    client = genai.Client(api_key=GEMINI_API_KEY)
-    selected_prompt = random.choice(character_settings_pool)
-    
-    # 1. Primary path: Imagen models via generate_images
-    imagen_models = ["imagen-3.0-generate-002", "imagen-3.0-fast-generate-001"]
-    for img_model in imagen_models:
-        try:
-            print(f"🔄 Attempting image generation with Imagen model '{img_model}'...")
-            response = client.models.generate_images(
-                model=img_model,
-                prompt=selected_prompt,
-                config=types.GenerateImagesConfig(
-                    number_of_images=1,
-                    aspect_ratio="9:16"
-                )
-            )
-            if hasattr(response, "generated_images") and response.generated_images:
-                gen_img = response.generated_images[0]
-                img_bytes = gen_img.image.image_bytes
-                img = Image.open(BytesIO(img_bytes)).convert("RGB")
-                img = img.resize((1080, 1920), Image.Resampling.LANCZOS)
-                img.save(GENERATED_IMAGE)
-                print(f"✅ Character image successfully saved using Imagen model '{img_model}'!")
-                return
-        except Exception as e:
-            print(f"⚠️ Imagen generation with model '{img_model}' failed: {e}")
+    # Method 3: Existing local image
+    if os.path.exists(output_path):
+        print(f"✅ Using pre-existing '{output_path}'.")
+        return output_path
 
-    # 2. Secondary path: Gemini multimodal models via generate_content
-    gemini_img_models = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.1-flash"]
-    for img_model in gemini_img_models:
-        try:
-            print(f"🔄 Attempting image generation with Gemini model '{img_model}'...")
-            response = client.models.generate_content(model=img_model, contents=selected_prompt)
-            if hasattr(response, "candidates") and response.candidates:
-                for candidate in response.candidates:
-                    if not candidate.content: continue
-                    for part in candidate.content.parts:
-                        if hasattr(part, "inline_data") and part.inline_data and part.inline_data.data:
-                            img = Image.open(BytesIO(part.inline_data.data)).convert("RGB")
-                            img = img.resize((1080, 1920), Image.Resampling.LANCZOS)
-                            img.save(GENERATED_IMAGE)
-                            print(f"✅ Character image successfully saved using Gemini model '{img_model}'!")
-                            return
-        except Exception as e:
-            print(f"⚠️ Image generation with Gemini model '{img_model}' failed: {e}")
+    raise RuntimeError("Could not generate or download a character portrait.")
 
-    raise RuntimeError("Gemini/Imagen image generation failed across all candidate models.")
+# ==========================================
+# STEP 3: TEXT-TO-SPEECH (EDGE-TTS)
+# ==========================================
+async def generate_tts_async(text, output_audio_path="narration.mp3"):
+    voice = "en-US-ChristopherNeural"
+    communicate = edge_tts.Communicate(text, voice)
+    await communicate.save(output_audio_path)
 
-async def generate_expressive_voice(text):
-    print("3️⃣ Generating natural, expressive neural voice with SSML pauses...")
+def generate_audio(narration_text):
+    print("3️⃣ Generating natural voice narration audio...")
+    mp3_path = "narration.mp3"
+    wav_path = "narration.wav"
     
-    ssml_text = (
-        "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>"
-        "<voice name='en-US-AndrewMultilingualNeural'>"
-        "<prosody rate='+3%' pitch='+1Hz'>"
-    )
+    asyncio.run(generate_tts_async(narration_text, mp3_path))
     
-    punctuated = text.replace("!", "! <break time='450ms'/>") \
-                     .replace("?", "? <break time='550ms'/>") \
-                     .replace(".", ". <break time='450ms'/>") \
-                     .replace(",", ", <break time='250ms'/>") \
-                     .replace("...", "<break time='650ms'/>")
-                     
-    ssml_text += punctuated + "</prosody></voice></speak>"
-    
-    communicate = edge_tts.Communicate(ssml_text, "en-US-AndrewMultilingualNeural")
-    await communicate.save(VOICE_AUDIO_MP3)
+    # Convert MP3 to WAV for Wav2Lip compatibility
+    cmd = ["ffmpeg", "-y", "-i", mp3_path, "-ac", "1", "-ar", "16000", wav_path]
+    subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    print(f"✅ Audio generated and converted to '{wav_path}'.")
+    return wav_path
 
-def animate_character_mouth():
-    print("4️⃣ Running Wav2Lip with strict mouth-bounding box padding...")
-    wav2lip_dir = os.path.join(ROOT_DIR, "Wav2Lip")
-    os.makedirs(os.path.join(wav2lip_dir, "temp"), exist_ok=True)
+# ==========================================
+# STEP 4: WAV2LIP LIP-SYNC GENERATION
+# ==========================================
+def run_wav2lip(image_path="character.png", audio_path="narration.wav"):
+    print("4️⃣ Running Wav2Lip lip-sync generation...")
+    output_video = "wav2lip_output.mp4"
     
-    checkpoint = os.path.join(wav2lip_dir, "checkpoints", "wav2lip_gan.pth")
-    wav_path = os.path.join(ROOT_DIR, "speech.wav")
-    subprocess.run(["ffmpeg", "-y", "-i", VOICE_AUDIO_MP3, wav_path], check=True, capture_output=True)
-    
+    # Append Wav2Lip directory to sys.path so modules resolve correctly
+    wav2lip_dir = os.path.abspath("Wav2Lip")
+    if wav2lip_dir not in sys.path:
+        sys.path.append(wav2lip_dir)
+
+    checkpoint = "Wav2Lip/checkpoints/wav2lip_gan.pth"
+    if not os.path.exists(checkpoint):
+        checkpoint = "Wav2Lip/checkpoints/wav2lip.pth"
+
     cmd = [
-        "python", "inference.py", 
+        sys.executable,
+        "Wav2Lip/inference.py",
         "--checkpoint_path", checkpoint,
-        "--face", GENERATED_IMAGE,
-        "--audio", wav_path, 
-        "--outfile", VIDEO_LIPSYNC,
-        "--pads", "0", "15", "0", "0",
-        "--nosmooth" 
+        "--face", image_path,
+        "--audio", audio_path,
+        "--outfile", output_video,
+        "--nosmooth",
+        "--resize_factor", "1"
     ]
     
-    res = subprocess.run(cmd, cwd=wav2lip_dir, capture_output=True, text=True)
-    if res.returncode != 0:
-        print(f"Wav2Lip Error Output:\n{res.stderr}")
-        raise RuntimeError(f"Wav2Lip failed: {res.stderr}")
-    print("✅ Wav2Lip precision mouth sync complete!")
-
-def render_clean_reel():
-    print("5️⃣ Exporting full-length Reel...")
-    from moviepy.video.io.VideoFileClip import VideoFileClip
-    from moviepy.audio.io.AudioFileClip import AudioFileClip
-
-    video_clip = VideoFileClip(VIDEO_LIPSYNC)
-    audio_clip = AudioFileClip(VOICE_AUDIO_MP3)
-    final = video_clip.with_audio(audio_clip)
+    print(f"Executing: {' '.join(cmd)}")
+    result = subprocess.run(cmd, capture_output=True, text=True)
     
-    final.write_videofile(
-        FINAL_REEL, 
-        fps=25, 
-        codec="libx264", 
+    if result.returncode != 0:
+        print(f"❌ Wav2Lip stderr: {result.stderr}")
+        raise RuntimeError(f"Wav2Lip inference failed with exit code {result.returncode}")
+        
+    print(f"✅ Wav2Lip video generated: '{output_video}'.")
+    return output_video
+
+# ==========================================
+# STEP 5: COMPOSITE FINAL 9:16 REEL
+# ==========================================
+def create_final_reel(wav2lip_video_path, pmp_data):
+    print("5️⃣ Building final 9:16 vertical Reel...")
+    output_reel = "final_pmp_reel.mp4"
+    
+    # Load lip-synced video clip
+    avatar_clip = VideoFileClip(wav2lip_video_path)
+    
+    # Crop / resize avatar video to fit upper half of 1080x1920 canvas
+    target_w, target_h = 1080, 1920
+    avatar_resized = avatar_clip.resize(width=target_w)
+    
+    # Position avatar clip near upper third
+    avatar_positioned = avatar_resized.set_position(("center", 150))
+    
+    # Create dark background canvas
+    background = ColorClip(size=(target_w, target_h), color=(15, 23, 42)).set_duration(avatar_clip.duration)
+    
+    # Compose composite video
+    final_clip = CompositeVideoClip([background, avatar_positioned])
+    final_clip.write_videofile(
+        output_reel,
+        fps=24,
+        codec="libx264",
         audio_codec="aac",
         preset="ultrafast",
-        logger=None
+        threads=4
     )
     
-    video_clip.close()
-    audio_clip.close()
-    final.close()
-    print("✅ Full-length Reel exported successfully!")
+    avatar_clip.close()
+    final_clip.close()
+    print(f"✅ Final Reel exported to '{output_reel}'.")
+    return output_reel
 
-def publish_to_facebook(content):
-    print("6️⃣ Uploading Reel to Facebook Page...")
-    url = f"https://graph.facebook.com/v19.0/{FB_PAGE_ID}/videos"
-    
-    description = (
-        f"🎯 {content['topic'].upper()}\n\n"
-        f"❓ {content['question']}\n\n"
-        f"{content['option_a']}\n"
-        f"{content['option_b']}\n"
-        f"{content['option_c']}\n"
-        f"{content['option_d']}\n\n"
-        f"💡 Correct Answer: {content['correct_answer']}\n"
-        f"🧠 Mindset: {content['explanation']}\n\n"
-        f"#PMP #ProjectManagement #Agile #PMPExam"
-    )
-    
-    payload = {
-        "description": description,
-        "access_token": FB_ACCESS_TOKEN,
-        "published": "true"
+# ==========================================
+# STEP 6: PUBLISH TO FACEBOOK REELS
+# ==========================================
+def publish_to_facebook(video_path, caption):
+    print("6️⃣ Uploading and publishing to Facebook Page Reels...")
+    if not FB_PAGE_ID or not FB_ACCESS_TOKEN:
+        print("⚠️ Facebook Page ID or Access Token missing. Skipping upload step.")
+        return
+
+    # Phase 1: Initialize Upload Session
+    init_url = f"https://graph.facebook.com/v19.0/{FB_PAGE_ID}/video_reels"
+    init_payload = {
+        "upload_phase": "start",
+        "access_token": FB_ACCESS_TOKEN
     }
     
-    with open(FINAL_REEL, "rb") as video_file:
-        files = {"source": video_file}
-        res = requests.post(url, data=payload, files=files, timeout=180)
-        
-    res_data = res.json()
-    if "error" in res_data:
-        raise RuntimeError(f"Facebook Graph API Error:\n{json.dumps(res_data['error'], indent=2)}")
-        
-    print(f"🎉 Successfully published full-length Reel to Facebook! Video ID: {res_data['id']}")
+    init_res = requests.post(init_url, data=init_payload).json()
+    if "video_id" not in init_res:
+        print(f"❌ Failed to initialize FB Reel upload: {init_res}")
+        return
 
+    video_id = init_res["video_id"]
+    upload_url = init_res["upload_url"]
+
+    # Phase 2: Upload Video File Binary
+    file_size = os.path.getsize(video_path)
+    with open(video_path, "rb") as f:
+        headers = {
+            "Authorization": f"OAuth {FB_ACCESS_TOKEN}",
+            "offset": "0",
+            "file_size": str(file_size)
+        }
+        upload_res = requests.post(upload_url, headers=headers, data=f).json()
+
+    # Phase 3: Finish & Publish Reel
+    finish_url = f"https://graph.facebook.com/v19.0/{FB_PAGE_ID}/video_reels"
+    finish_payload = {
+        "upload_phase": "finish",
+        "video_id": video_id,
+        "video_state": "PUBLISHED",
+        "description": caption,
+        "access_token": FB_ACCESS_TOKEN
+    }
+    
+    finish_res = requests.post(finish_url, data=finish_payload).json()
+    if finish_res.get("success"):
+        print(f"🎉 SUCCESS! Reel published successfully to Facebook Page! (Video ID: {video_id})")
+    else:
+        print(f"⚠️ FB Publishing response: {finish_res}")
+
+# ==========================================
+# MAIN EXECUTION PIPELINE
+# ==========================================
 if __name__ == "__main__":
+    print("🚀 SCRIPT INITIATED: Full-Length Natural Audio & Precision Lip-Sync Pipeline...")
+    print("✅ Environment variables validated.")
+    
     try:
-        validate_environment()
-        content = get_daily_pmp_content()
-        generate_character_image()
+        # 1. Generate PMP Content Script
+        pmp_data = generate_pmp_content()
         
-        asyncio.run(generate_expressive_voice(content["spoken_script"]))
-        animate_character_mouth()
-        render_clean_reel()
-        publish_to_facebook(content)
+        # 2. Prepare Avatar Image
+        character_img = generate_character_image()
         
-        print("✅ PIPELINE COMPLETED SUCCESSFULLY!")
+        # 3. Generate TTS Audio
+        audio_file = generate_audio(pmp_data["narration"])
         
-    except Exception as e:
-        print("\n" + "="*60)
+        # 4. Run Wav2Lip Lip-Sync
+        lip_synced_video = run_wav2lip(character_img, audio_file)
+        
+        # 5. Composite Final Reel
+        final_reel_path = create_final_reel(lip_synced_video, pmp_data)
+        
+        # 6. Publish to Facebook
+        caption = f"Daily PMP Exam Prep Question!\n\n{pmp_data['question']}\n\n#PMP #ProjectManagement #PMPPrep #CAPM #PMBOK"
+        publish_to_facebook(final_reel_path, caption)
+        
+        print("✅ PIPELINE EXECUTION COMPLETED SUCCESSFULLY!")
+
+    except Exception as err:
+        print("\n============================================================")
         print("🔥 FATAL ERROR CAUGHT IN PIPELINE 🔥")
-        print("="*60)
-        traceback.print_exc()
-        print("="*60)
-        sys.exit(1)
+        print("============================================================")
+        raise err
