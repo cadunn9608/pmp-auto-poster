@@ -34,6 +34,24 @@ if not GEMINI_API_KEY:
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 # ==========================================
+# MOVIEPY V1/V2 HELPER FUNCTIONS
+# ==========================================
+def resize_clip(clip, **kwargs):
+    if hasattr(clip, "resized"):
+        return clip.resized(**kwargs)
+    return clip.resize(**kwargs)
+
+def set_clip_position(clip, pos):
+    if hasattr(clip, "with_position"):
+        return clip.with_position(pos)
+    return clip.set_position(pos)
+
+def set_clip_duration(clip, duration):
+    if hasattr(clip, "with_duration"):
+        return clip.with_duration(duration)
+    return clip.set_duration(duration)
+
+# ==========================================
 # WAV2LIP COMPATIBILITY PATCHES
 # ==========================================
 def patch_wav2lip_files():
@@ -232,10 +250,10 @@ def create_final_reel(wav2lip_video_path, pmp_data):
     avatar_clip = VideoFileClip(wav2lip_video_path)
     
     target_w, target_h = 1080, 1920
-    avatar_resized = avatar_clip.resize(width=target_w)
-    avatar_positioned = avatar_resized.set_position(("center", 150))
+    avatar_resized = resize_clip(avatar_clip, width=target_w)
+    avatar_positioned = set_clip_position(avatar_resized, ("center", 150))
     
-    background = ColorClip(size=(target_w, target_h), color=(15, 23, 42)).set_duration(avatar_clip.duration)
+    background = set_clip_duration(ColorClip(size=(target_w, target_h), color=(15, 23, 42)), avatar_clip.duration)
     
     final_clip = CompositeVideoClip([background, avatar_positioned])
     final_clip.write_videofile(
