@@ -20,10 +20,10 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install System Dependencies (FFmpeg & OpenCV bindings)
+      - name: Install System Dependencies (FFmpeg & OpenGL)
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg libsm6 libxext6 libgl1-mesa-glx
+          sudo apt-get install -y ffmpeg libsm6 libxext6 libgl1
 
       - name: Setup Wav2Lip & Download Required Weights
         run: |
