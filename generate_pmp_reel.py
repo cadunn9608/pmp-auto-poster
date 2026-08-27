@@ -34,16 +34,17 @@ if not GEMINI_API_KEY:
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 # ==========================================
-# WAV2LIP COMPATIBILITY PATCH
+# WAV2LIP COMPATIBILITY PATCHES
 # ==========================================
-def patch_wav2lip_librosa():
-    """Patches cloned Wav2Lip/audio.py to support modern librosa keyword arguments."""
-    audio_py = os.path.abspath(os.path.join("Wav2Lip", "audio.py"))
+def patch_wav2lip_files():
+    """Patches Wav2Lip scripts for librosa, OpenCV fourcc, and temp folder compatibility."""
+    wav2lip_dir = os.path.abspath("Wav2Lip")
+    os.makedirs(os.path.join(wav2lip_dir, "temp"), exist_ok=True)
+
+    audio_py = os.path.join(wav2lip_dir, "audio.py")
     if os.path.exists(audio_py):
         with open(audio_py, "r") as f:
             content = f.read()
-        
-        # Replace positional args in librosa.filters.mel for modern librosa compatibility
         if "librosa.filters.mel(hp.sample_rate, hp.n_fft," in content:
             content = content.replace(
                 "librosa.filters.mel(hp.sample_rate, hp.n_fft,",
@@ -52,6 +53,25 @@ def patch_wav2lip_librosa():
             with open(audio_py, "w") as f:
                 f.write(content)
             print("🔧 Patched Wav2Lip/audio.py for modern librosa compatibility.")
+
+    inference_py = os.path.join(wav2lip_dir, "inference.py")
+    if os.path.exists(inference_py):
+        with open(inference_py, "r") as f:
+            content = f.read()
+        
+        modified = False
+        if "os.makedirs('temp', exist_ok=True)" not in content:
+            content = "import os\nos.makedirs('temp', exist_ok=True)\n" + content
+            modified = True
+            
+        if "cv2.VideoWriter_fourcc(*'DIVX')" in content:
+            content = content.replace("cv2.VideoWriter_fourcc(*'DIVX')", "cv2.VideoWriter_fourcc(*'MJPG')")
+            modified = True
+
+        if modified:
+            with open(inference_py, "w") as f:
+                f.write(content)
+            print("🔧 Patched Wav2Lip/inference.py for temp folder & OpenCV MJPG video codec.")
 
 # ==========================================
 # STEP 1: GEMINI TEXT GENERATION
@@ -168,7 +188,7 @@ def run_wav2lip(image_path="character.png", audio_path="narration.wav"):
     abs_image_path = os.path.abspath(image_path)
     abs_audio_path = os.path.abspath(audio_path)
     
-    patch_wav2lip_librosa()
+    patch_wav2lip_files()
 
     wav2lip_dir = os.path.abspath("Wav2Lip")
     if wav2lip_dir not in sys.path:
@@ -192,9 +212,8 @@ def run_wav2lip(image_path="character.png", audio_path="narration.wav"):
     ]
     
     print(f"Executing: {' '.join(cmd)}")
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, cwd=wav2lip_dir, capture_output=True, text=True)
     
-    # Validate process exit code and file existence
     if result.returncode != 0 or not os.path.exists(output_video) or os.path.getsize(output_video) == 0:
         print(f"❌ Wav2Lip STDOUT:\n{result.stdout}")
         print(f"❌ Wav2Lip STDERR:\n{result.stderr}")
