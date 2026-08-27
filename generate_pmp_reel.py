@@ -38,7 +38,7 @@ client = genai.Client(api_key=GEMINI_API_KEY)
 # ==========================================
 def patch_wav2lip_librosa():
     """Patches cloned Wav2Lip/audio.py to support modern librosa keyword arguments."""
-    audio_py = os.path.join("Wav2Lip", "audio.py")
+    audio_py = os.path.abspath(os.path.join("Wav2Lip", "audio.py"))
     if os.path.exists(audio_py):
         with open(audio_py, "r") as f:
             content = f.read()
@@ -87,7 +87,6 @@ def generate_pmp_content():
         except Exception as e:
             print(f"⚠️ Generation failed with model '{model_name}': {e}")
             
-    # Fallback default if API fails completely
     print("⚠️ Returning fallback static PMP question data...")
     return {
         "question": "A project manager is facing scope creep during execution due to unapproved stakeholder requests. What should the project manager do FIRST?",
@@ -106,9 +105,8 @@ def generate_pmp_content():
 # ==========================================
 def generate_character_image(prompt_text="A professional project manager host speaking into a studio microphone, portrait photo, centered face, high resolution"):
     print("2️⃣ Preparing character portrait...")
-    output_path = "character.png"
+    output_path = os.path.abspath("character.png")
 
-    # Method 1: Pollinations AI (Free online image API)
     try:
         print("🔄 Generating portrait via Pollinations AI...")
         encoded_prompt = requests.utils.quote(prompt_text)
@@ -122,7 +120,6 @@ def generate_character_image(prompt_text="A professional project manager host sp
     except Exception as e:
         print(f"⚠️ Pollinations AI generation failed: {e}")
 
-    # Method 2: High-quality professional avatar download fallback
     try:
         print("🔄 Downloading fallback default avatar...")
         fallback_url = "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=800&q=80"
@@ -135,7 +132,6 @@ def generate_character_image(prompt_text="A professional project manager host sp
     except Exception as e:
         print(f"⚠️ Default avatar download failed: {e}")
 
-    # Method 3: Existing local image
     if os.path.exists(output_path):
         print(f"✅ Using pre-existing '{output_path}'.")
         return output_path
@@ -145,19 +141,18 @@ def generate_character_image(prompt_text="A professional project manager host sp
 # ==========================================
 # STEP 3: TEXT-TO-SPEECH (EDGE-TTS)
 # ==========================================
-async def generate_tts_async(text, output_audio_path="narration.mp3"):
+async def generate_tts_async(text, output_audio_path):
     voice = "en-US-ChristopherNeural"
     communicate = edge_tts.Communicate(text, voice)
     await communicate.save(output_audio_path)
 
 def generate_audio(narration_text):
     print("3️⃣ Generating natural voice narration audio...")
-    mp3_path = "narration.mp3"
-    wav_path = "narration.wav"
+    mp3_path = os.path.abspath("narration.mp3")
+    wav_path = os.path.abspath("narration.wav")
     
     asyncio.run(generate_tts_async(narration_text, mp3_path))
     
-    # Convert MP3 to WAV for Wav2Lip compatibility
     cmd = ["ffmpeg", "-y", "-i", mp3_path, "-ac", "1", "-ar", "16000", wav_path]
     subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     print(f"✅ Audio generated and converted to '{wav_path}'.")
@@ -168,26 +163,29 @@ def generate_audio(narration_text):
 # ==========================================
 def run_wav2lip(image_path="character.png", audio_path="narration.wav"):
     print("4️⃣ Running Wav2Lip lip-sync generation...")
-    output_video = "wav2lip_output.mp4"
     
-    # Apply modern librosa compatibility patch to Wav2Lip/audio.py
+    output_video = os.path.abspath("wav2lip_output.mp4")
+    abs_image_path = os.path.abspath(image_path)
+    abs_audio_path = os.path.abspath(audio_path)
+    
     patch_wav2lip_librosa()
 
-    # Append Wav2Lip directory to sys.path so modules resolve correctly
     wav2lip_dir = os.path.abspath("Wav2Lip")
     if wav2lip_dir not in sys.path:
         sys.path.append(wav2lip_dir)
 
-    checkpoint = "Wav2Lip/checkpoints/wav2lip_gan.pth"
+    checkpoint = os.path.join(wav2lip_dir, "checkpoints", "wav2lip_gan.pth")
     if not os.path.exists(checkpoint):
-        checkpoint = "Wav2Lip/checkpoints/wav2lip.pth"
+        checkpoint = os.path.join(wav2lip_dir, "checkpoints", "wav2lip.pth")
+
+    inference_script = os.path.join(wav2lip_dir, "inference.py")
 
     cmd = [
         sys.executable,
-        "Wav2Lip/inference.py",
+        inference_script,
         "--checkpoint_path", checkpoint,
-        "--face", image_path,
-        "--audio", audio_path,
+        "--face", abs_image_path,
+        "--audio", abs_audio_path,
         "--outfile", output_video,
         "--nosmooth",
         "--resize_factor", "1"
@@ -196,9 +194,11 @@ def run_wav2lip(image_path="character.png", audio_path="narration.wav"):
     print(f"Executing: {' '.join(cmd)}")
     result = subprocess.run(cmd, capture_output=True, text=True)
     
-    if result.returncode != 0:
-        print(f"❌ Wav2Lip stderr: {result.stderr}")
-        raise RuntimeError(f"Wav2Lip inference failed with exit code {result.returncode}")
+    # Validate process exit code and file existence
+    if result.returncode != 0 or not os.path.exists(output_video) or os.path.getsize(output_video) == 0:
+        print(f"❌ Wav2Lip STDOUT:\n{result.stdout}")
+        print(f"❌ Wav2Lip STDERR:\n{result.stderr}")
+        raise RuntimeError(f"Wav2Lip failed to create output file at '{output_video}'. Exit code: {result.returncode}")
         
     print(f"✅ Wav2Lip video generated: '{output_video}'.")
     return output_video
@@ -208,22 +208,16 @@ def run_wav2lip(image_path="character.png", audio_path="narration.wav"):
 # ==========================================
 def create_final_reel(wav2lip_video_path, pmp_data):
     print("5️⃣ Building final 9:16 vertical Reel...")
-    output_reel = "final_pmp_reel.mp4"
+    output_reel = os.path.abspath("final_pmp_reel.mp4")
     
-    # Load lip-synced video clip
     avatar_clip = VideoFileClip(wav2lip_video_path)
     
-    # Crop / resize avatar video to fit upper half of 1080x1920 canvas
     target_w, target_h = 1080, 1920
     avatar_resized = avatar_clip.resize(width=target_w)
-    
-    # Position avatar clip near upper third
     avatar_positioned = avatar_resized.set_position(("center", 150))
     
-    # Create dark background canvas
     background = ColorClip(size=(target_w, target_h), color=(15, 23, 42)).set_duration(avatar_clip.duration)
     
-    # Compose composite video
     final_clip = CompositeVideoClip([background, avatar_positioned])
     final_clip.write_videofile(
         output_reel,
@@ -248,7 +242,6 @@ def publish_to_facebook(video_path, caption):
         print("⚠️ Facebook Page ID or Access Token missing. Skipping upload step.")
         return
 
-    # Phase 1: Initialize Upload Session
     init_url = f"https://graph.facebook.com/v19.0/{FB_PAGE_ID}/video_reels"
     init_payload = {
         "upload_phase": "start",
@@ -263,7 +256,6 @@ def publish_to_facebook(video_path, caption):
     video_id = init_res["video_id"]
     upload_url = init_res["upload_url"]
 
-    # Phase 2: Upload Video File Binary
     file_size = os.path.getsize(video_path)
     with open(video_path, "rb") as f:
         headers = {
@@ -273,7 +265,6 @@ def publish_to_facebook(video_path, caption):
         }
         upload_res = requests.post(upload_url, headers=headers, data=f).json()
 
-    # Phase 3: Finish & Publish Reel
     finish_url = f"https://graph.facebook.com/v19.0/{FB_PAGE_ID}/video_reels"
     finish_payload = {
         "upload_phase": "finish",
@@ -297,22 +288,12 @@ if __name__ == "__main__":
     print("✅ Environment variables validated.")
     
     try:
-        # 1. Generate PMP Content Script
         pmp_data = generate_pmp_content()
-        
-        # 2. Prepare Avatar Image
         character_img = generate_character_image()
-        
-        # 3. Generate TTS Audio
         audio_file = generate_audio(pmp_data["narration"])
-        
-        # 4. Run Wav2Lip Lip-Sync
         lip_synced_video = run_wav2lip(character_img, audio_file)
-        
-        # 5. Composite Final Reel
         final_reel_path = create_final_reel(lip_synced_video, pmp_data)
         
-        # 6. Publish to Facebook
         caption = f"Daily PMP Exam Prep Question!\n\n{pmp_data['question']}\n\n#PMP #ProjectManagement #PMPPrep #CAPM #PMBOK"
         publish_to_facebook(final_reel_path, caption)
         
