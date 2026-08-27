@@ -20,10 +20,10 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install System Dependencies (FFmpeg)
+      - name: Install System Dependencies (FFmpeg & OpenCV bindings)
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg
+          sudo apt-get install -y ffmpeg libsm6 libxext6 libgl1-mesa-glx
 
       - name: Setup Wav2Lip & Download Required Weights
         run: |
@@ -50,16 +50,13 @@ jobs:
 
       - name: Install Python Dependencies
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip setuptools wheel
           
           # Core generation & media packages
           pip install edge-tts google-genai pillow requests moviepy
           
-          # Wav2Lip machine learning & computer vision dependencies
-          pip install numpy opencv-python torch torchvision torchaudio librosa numba tqdm
-          
-          # Install remaining Wav2Lip requirements
-          pip install -r Wav2Lip/requirements.txt || echo "Using modern compatible versions for CPU"
+          # Python 3.10-compatible machine learning & Wav2Lip dependencies
+          pip install "numpy<2.0.0" "librosa>=0.9.0" opencv-python-headless torch torchvision torchaudio numba tqdm
 
       - name: Run PMP Reel Generation Script
         env:
