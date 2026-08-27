@@ -9,6 +9,7 @@ import asyncio
 import traceback
 import edge_tts
 from google import genai
+from google.genai import types
 from PIL import Image
 from io import BytesIO
 
@@ -83,23 +84,28 @@ def get_daily_pmp_content():
     )
     
     models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
-    for attempt in range(1, 4):
-        for model_name in models_to_try:
-            try:
-                response = client.models.generate_content(
-                    model=model_name, 
-                    contents=prompt, 
-                    config={"response_mime_type": "application/json"}
+    last_error = None
+
+    for model_name in models_to_try:
+        try:
+            response = client.models.generate_content(
+                model=model_name, 
+                contents=prompt, 
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json"
                 )
-                raw_text = response.text.strip()
-                bt = chr(96) * 3
-                if f"{bt}json" in raw_text: raw_text = raw_text.split(f"{bt}json")[1].split(bt)[0]
-                elif bt in raw_text: raw_text = raw_text.split(bt)[1].split(bt)[0]
-                return json.loads(raw_text.strip())
-            except Exception:
-                continue
-        time.sleep(5)
-    raise RuntimeError("Failed to generate content from Gemini.")
+            )
+            raw_text = response.text.strip()
+            bt = chr(96) * 3
+            if f"{bt}json" in raw_text: raw_text = raw_text.split(f"{bt}json")[1].split(bt)[0]
+            elif bt in raw_text: raw_text = raw_text.split(bt)[1].split(bt)[0]
+            return json.loads(raw_text.strip())
+        except Exception as e:
+            last_error = e
+            print(f"⚠️ Generation attempt with model '{model_name}' failed: {e}")
+            time.sleep(2)
+
+    raise RuntimeError(f"Failed to generate content from Gemini. Last error: {last_error}")
 
 def generate_character_image():
     print("2️⃣ Generating precision-framed character portrait via Gemini...")
@@ -109,17 +115,20 @@ def generate_character_image():
     for img_model in ["imagen-3.0-generate-002", "gemini-2.5-flash"]:
         try:
             response = client.models.generate_content(model=img_model, contents=selected_prompt)
-            for candidate in response.candidates:
-                for part in candidate.content.parts:
-                    if part.inline_data and part.inline_data.data:
-                        img = Image.open(BytesIO(part.inline_data.data)).convert("RGB")
-                        img = img.resize((1080, 1920), Image.Resampling.LANCZOS)
-                        img.save(GENERATED_IMAGE)
-                        print("✅ Character image successfully saved and framed!")
-                        return
-        except Exception:
+            if hasattr(response, "candidates") and response.candidates:
+                for candidate in response.candidates:
+                    if not candidate.content: continue
+                    for part in candidate.content.parts:
+                        if part.inline_data and part.inline_data.data:
+                            img = Image.open(BytesIO(part.inline_data.data)).convert("RGB")
+                            img = img.resize((1080, 1920), Image.Resampling.LANCZOS)
+                            img.save(GENERATED_IMAGE)
+                            print("✅ Character image successfully saved and framed!")
+                            return
+        except Exception as e:
+            print(f"⚠️ Image generation with model '{img_model}' failed: {e}")
             continue
-    raise RuntimeError("Gemini image generation failed.")
+    raise RuntimeError("Gemini image generation failed across candidate models.")
 
 async def generate_expressive_voice(text):
     print("3️⃣ Generating natural, expressive neural voice with SSML pauses...")
