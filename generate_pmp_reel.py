@@ -83,12 +83,13 @@ def get_daily_pmp_content():
         "}"
     )
     
-    # Preferred candidate models in order of priority
+    # Updated Gemini 3.x series models
     candidate_models = [
-        "gemini-2.5-flash",
-        "gemini-2.5-pro",
-        "gemini-2.0-flash",
-        "gemini-1.5-flash"
+        "gemini-3.6-flash",
+        "gemini-3.5-flash",
+        "gemini-3.1-flash",
+        "gemini-3.1-flash-lite",
+        "gemini-3-flash-preview"
     ]
     
     # 1. Attempt static list of candidate models
@@ -113,13 +114,13 @@ def get_daily_pmp_content():
         except Exception as e:
             print(f"⚠️ Generation attempt with model '{model_name}' failed: {e}")
 
-    # 2. Dynamic Fallback: Query available API models if candidates failed
+    # 2. Dynamic Fallback: Query available API models if candidates fail
     print("🌐 Hardcoded model attempts failed. Querying active models dynamically from Gemini API...")
     try:
         available_models = list(client.models.list())
         for model in available_models:
             model_id = getattr(model, "name", str(model))
-            if "gemini" in model_id.lower():
+            if "gemini" in model_id.lower() and "tts" not in model_id.lower():
                 clean_name = model_id.replace("models/", "")
                 try:
                     print(f"🔄 Dynamic fallback attempt with '{clean_name}'...")
@@ -146,36 +147,54 @@ def get_daily_pmp_content():
     raise RuntimeError("Failed to generate content from Gemini across all fallback mechanisms.")
 
 def generate_character_image():
-    print("2️⃣ Generating precision-framed character portrait via Gemini...")
+    print("2️⃣ Generating precision-framed character portrait via Gemini/Imagen...")
     client = genai.Client(api_key=GEMINI_API_KEY)
     selected_prompt = random.choice(character_settings_pool)
     
-    candidate_img_models = [
-        "imagen-3.0-generate-002",
-        "gemini-2.5-flash",
-        "gemini-2.0-flash",
-        "gemini-1.5-flash"
-    ]
-    
-    for img_model in candidate_img_models:
+    # 1. Primary path: Imagen models via generate_images
+    imagen_models = ["imagen-3.0-generate-002", "imagen-3.0-fast-generate-001"]
+    for img_model in imagen_models:
         try:
-            print(f"🔄 Attempting image generation with model '{img_model}'...")
+            print(f"🔄 Attempting image generation with Imagen model '{img_model}'...")
+            response = client.models.generate_images(
+                model=img_model,
+                prompt=selected_prompt,
+                config=types.GenerateImagesConfig(
+                    number_of_images=1,
+                    aspect_ratio="9:16"
+                )
+            )
+            if hasattr(response, "generated_images") and response.generated_images:
+                gen_img = response.generated_images[0]
+                img_bytes = gen_img.image.image_bytes
+                img = Image.open(BytesIO(img_bytes)).convert("RGB")
+                img = img.resize((1080, 1920), Image.Resampling.LANCZOS)
+                img.save(GENERATED_IMAGE)
+                print(f"✅ Character image successfully saved using Imagen model '{img_model}'!")
+                return
+        except Exception as e:
+            print(f"⚠️ Imagen generation with model '{img_model}' failed: {e}")
+
+    # 2. Secondary path: Gemini multimodal models via generate_content
+    gemini_img_models = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.1-flash"]
+    for img_model in gemini_img_models:
+        try:
+            print(f"🔄 Attempting image generation with Gemini model '{img_model}'...")
             response = client.models.generate_content(model=img_model, contents=selected_prompt)
             if hasattr(response, "candidates") and response.candidates:
                 for candidate in response.candidates:
                     if not candidate.content: continue
                     for part in candidate.content.parts:
-                        if part.inline_data and part.inline_data.data:
+                        if hasattr(part, "inline_data") and part.inline_data and part.inline_data.data:
                             img = Image.open(BytesIO(part.inline_data.data)).convert("RGB")
                             img = img.resize((1080, 1920), Image.Resampling.LANCZOS)
                             img.save(GENERATED_IMAGE)
-                            print(f"✅ Character image successfully saved using model '{img_model}'!")
+                            print(f"✅ Character image successfully saved using Gemini model '{img_model}'!")
                             return
         except Exception as e:
-            print(f"⚠️ Image generation with model '{img_model}' failed: {e}")
-            continue
+            print(f"⚠️ Image generation with Gemini model '{img_model}' failed: {e}")
 
-    raise RuntimeError("Gemini image generation failed across all candidate models.")
+    raise RuntimeError("Gemini/Imagen image generation failed across all candidate models.")
 
 async def generate_expressive_voice(text):
     print("3️⃣ Generating natural, expressive neural voice with SSML pauses...")
