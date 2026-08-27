@@ -2,10 +2,10 @@ name: Daily PMP Reel Automation
 
 on:
   schedule:
-    # Runs automatically every day at 14:00 UTC (Adjust as needed)
+    # Runs automatically every day at 14:00 UTC
     - cron: '0 14 * * *'
   workflow_dispatch:
-    # Allows you to trigger the run manually from the GitHub Actions tab
+    # Allows manual triggering from the GitHub Actions tab
 
 jobs:
   generate_and_publish:
@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
@@ -27,22 +27,22 @@ jobs:
 
       - name: Setup Wav2Lip & Download Required Weights
         run: |
-          # Clone Wav2Lip if it isn't already in your repository
+          # Clone Wav2Lip if not already present in the repository
           if [ ! -d "Wav2Lip" ]; then
             git clone https://github.com/Rudrabha/Wav2Lip.git
           fi
           
-          # Create directories for the weights
+          # Create directories for model weights
           mkdir -p Wav2Lip/checkpoints
           mkdir -p Wav2Lip/face_detection/detection/sfd
           
-          # Download the Wav2Lip GAN model
+          # Download Wav2Lip GAN model weights if missing
           if [ ! -f "Wav2Lip/checkpoints/wav2lip_gan.pth" ]; then
             echo "Downloading wav2lip_gan.pth..."
             wget "https://huggingface.co/camenduru/Wav2Lip/resolve/main/checkpoints/wav2lip_gan.pth" -O Wav2Lip/checkpoints/wav2lip_gan.pth
           fi
           
-          # Download the Face Detection model (required by Wav2Lip)
+          # Download Face Detection model weights if missing
           if [ ! -f "Wav2Lip/face_detection/detection/sfd/s3fd.pth" ]; then
             echo "Downloading face detection model..."
             wget "https://www.adrianbulat.com/downloads/python-fan/s3fd-619a316812.pth" -O Wav2Lip/face_detection/detection/sfd/s3fd.pth
@@ -52,20 +52,21 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           
-          # Install core libraries for the script
+          # Core generation & media packages
           pip install edge-tts google-genai pillow requests moviepy
           
-          # Install Wav2Lip specific dependencies (Torch, OpenCV, Librosa)
+          # Wav2Lip machine learning & computer vision dependencies
           pip install numpy opencv-python torch torchvision torchaudio librosa numba tqdm
           
-          # Install any remaining Wav2Lip requirements (ignoring version conflicts to keep it CPU-friendly)
+          # Install remaining Wav2Lip requirements
           pip install -r Wav2Lip/requirements.txt || echo "Using modern compatible versions for CPU"
 
       - name: Run PMP Reel Generation Script
         env:
-          # These must be set in your GitHub Repository Settings -> Secrets and variables -> Actions
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
-          FB_ACCESS_TOKEN: ${{ secrets.FB_ACCESS_TOKEN }}
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
+          FACEBOOK_APP_ID: ${{ secrets.FACEBOOK_APP_ID }}
+          FACEBOOK_APP_SECRET: ${{ secrets.FACEBOOK_APP_SECRET }}
         run: |
           python generate_pmp_reel.py
