@@ -34,6 +34,26 @@ if not GEMINI_API_KEY:
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 # ==========================================
+# WAV2LIP COMPATIBILITY PATCH
+# ==========================================
+def patch_wav2lip_librosa():
+    """Patches cloned Wav2Lip/audio.py to support modern librosa keyword arguments."""
+    audio_py = os.path.join("Wav2Lip", "audio.py")
+    if os.path.exists(audio_py):
+        with open(audio_py, "r") as f:
+            content = f.read()
+        
+        # Replace positional args in librosa.filters.mel for modern librosa compatibility
+        if "librosa.filters.mel(hp.sample_rate, hp.n_fft," in content:
+            content = content.replace(
+                "librosa.filters.mel(hp.sample_rate, hp.n_fft,",
+                "librosa.filters.mel(sr=hp.sample_rate, n_fft=hp.n_fft,"
+            )
+            with open(audio_py, "w") as f:
+                f.write(content)
+            print("🔧 Patched Wav2Lip/audio.py for modern librosa compatibility.")
+
+# ==========================================
 # STEP 1: GEMINI TEXT GENERATION
 # ==========================================
 def generate_pmp_content():
@@ -51,7 +71,7 @@ def generate_pmp_content():
     Return ONLY valid JSON.
     """
     
-    candidate_models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+    candidate_models = ["gemini-3.6-flash", "gemini-2.5-flash"]
     
     for model_name in candidate_models:
         try:
@@ -150,6 +170,9 @@ def run_wav2lip(image_path="character.png", audio_path="narration.wav"):
     print("4️⃣ Running Wav2Lip lip-sync generation...")
     output_video = "wav2lip_output.mp4"
     
+    # Apply modern librosa compatibility patch to Wav2Lip/audio.py
+    patch_wav2lip_librosa()
+
     # Append Wav2Lip directory to sys.path so modules resolve correctly
     wav2lip_dir = os.path.abspath("Wav2Lip")
     if wav2lip_dir not in sys.path:
